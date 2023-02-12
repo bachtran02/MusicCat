@@ -1,0 +1,8 @@
+.env
+.cache
+__pycache__/
+.idea/
+lavalink_server/
+store/
+config/
+.venv/
