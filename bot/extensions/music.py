@@ -5,10 +5,10 @@ import hikari
 import logging
 import lavalink
 import lightbulb
-from typing import Optional
 from googleapiclient.discovery import build
 
-from ashema.library.SpotifyClient import SpotifyClient
+from bot.library.SpotifyClient import SpotifyClient
+from bot.library.MusicClient import MusicClient
 
 plugin = lightbulb.Plugin("Music", "🎧 Music commands")
 
@@ -19,10 +19,29 @@ class EventHandler:
     
     @lavalink.listener(lavalink.TrackStartEvent)
     async def track_start(self, event: lavalink.TrackStartEvent):
+
+        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+        
+        await plugin.bot.update_presence(
+            activity = hikari.Activity(
+            name = f"{player.current.author} - {player.current.title}",
+            type = hikari.ActivityType.LISTENING
+        ))
+
         logging.info("Track started on guild: %s", event.player.guild_id)
 
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):
+
+        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+
+        if not player.queue:
+            await plugin.bot.update_presence(
+                activity = hikari.Activity(
+                    name=f"/play",
+                    type=hikari.ActivityType.LISTENING
+                ))
+
         logging.info("Track finished on guild: %s", event.player.guild_id)
 
     @lavalink.listener(lavalink.TrackExceptionEvent)
@@ -55,84 +74,6 @@ async def start_lavalink(event: hikari.ShardReadyEvent) -> None:
     plugin.bot.d.spotify = SpotifyClient()
 
 
-async def _join(ctx: lightbulb.Context) -> Optional[hikari.Snowflake]:
-    assert ctx.guild_id is not None
-
-    states = plugin.bot.cache.get_voice_states_view_for_guild(ctx.guild_id)
-
-    voice_state = [state[1] for state in filter(lambda i : i[0] == ctx.author.id, states.items())]
-    bot_voice_state = [state[1] for state in filter(lambda i: i[0] == ctx.bot.get_me().id, states.items())]
-
-    if not voice_state:
-        await ctx.respond(":warning: Connect to a voice channel first!")
-        return None
-
-    channel_id = voice_state[0].channel_id
-
-    if bot_voice_state:
-        if channel_id != bot_voice_state[0].channel_id:
-            await ctx.respond(":warning: I am already playing in another Voice Channel!")
-            return None
-
-    try:
-        await plugin.bot.update_voice_state(ctx.guild_id, channel_id, self_deaf=True)
-        plugin.bot.d.lavalink.player_manager.create(guild_id=ctx.guild_id)  
-    except TimeoutError:
-        await ctx.respond(":warning: I was unable to connect to the voice channel, maybe missing permissions? or some internal issue.")
-        return None
-    
-    logging.info("Client connected to voice channel on guild: %s", ctx.guild_id)
-    return channel_id
-
-async def _play(ctx: lightbulb.Context, query: str):
-    assert ctx.guild_id is not None 
-
-    query = query.strip('<>')
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-
-    if not player or not player.is_connected:
-        await _join(ctx)
-    
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-
-    if not url_rx.match(query):
-        query = f'ytsearch:{query}'
-
-    results = await player.node.get_tracks(query)
-
-    if not results or not results.tracks:
-        return await ctx.respond(':warning: No result for query!')
-    
-    embed = hikari.Embed(color=0x76ffa1)
-
-    # Valid loadTypes are:
-    #   TRACK_LOADED    - single video/direct URL)
-    #   PLAYLIST_LOADED - direct URL to playlist)
-    #   SEARCH_RESULT   - query prefixed with either ytsearch: or scsearch:.
-    #   NO_MATCHES      - query yielded no results
-    #   LOAD_FAILED     - most likely, the video encountered an exception during loading.
-    if results.load_type == 'PLAYLIST_LOADED':
-        tracks = results.tracks
-
-        for track in tracks:
-            # Add all of the tracks from the playlist to the queue.
-            player.add(requester=ctx.author.id, track=track)
-
-        embed.description = f"Playlist '{results.playlist_info.name}' ({len(tracks)} added to queue [{ctx.author.mention}])"
-    else:
-        track = results.tracks[0]
-        embed.description = f"[{track.title}]({track.uri}) added to queue [{ctx.author.mention}]"
-
-        player.add(requester=ctx.author.id, track=track)
-
-    await ctx.respond(embed=embed)
-
-    if not player.is_playing:
-        await player.play()
-    else:
-        logging.info("Track(s) enqueued on guild: %s", ctx.guild_id)
-    
-
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.option("query", "The query to search for.", modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
@@ -142,7 +83,7 @@ async def play(ctx: lightbulb.Context) -> None:
     """Searches the query on youtube, or adds the URL to the queue."""
 
     query = ctx.options.query
-    await _play(query)
+    await MusicClient(plugin)._play(ctx, query)
 
 
 @plugin.command()
@@ -152,25 +93,18 @@ async def play(ctx: lightbulb.Context) -> None:
 async def leave(ctx: lightbulb.Context) -> None:
     """Leaves the voice channel the bot is in, clearing the queue."""
 
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-
-    if not player.is_connected:
+    if not await MusicClient(plugin)._leave(ctx.guild_id):
         await ctx.respond(":warning: Bot is not currently in any voice channel!")
-        return
-
-    player.queue.clear()  # clear queue
-    await player.stop()  # stop player
-    await plugin.bot.update_voice_state(ctx.guild_id, None) # disconnect from voice channel
-    
-    await ctx.respond("Left voice channel")
-
+    else:
+        await ctx.respond("Left voice channel")
+        
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.command("join", "Joins the voice channel you are in.")
 @lightbulb.implements(lightbulb.SlashCommand)
 async def join(ctx: lightbulb.Context) -> None:
-    channel_id = await _join(ctx)
+    channel_id = await MusicClient(plugin)._join(ctx)
 
     if channel_id:
         await ctx.respond(f"Joined <#{channel_id}>")
@@ -323,7 +257,7 @@ async def chill(ctx: lightbulb.Context) -> None:
         next_page_token = res.get('nextPageToken')
 
     assert query is not None
-    await _play(ctx, query)
+    await MusicClient(plugin)._play(ctx, query)
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
@@ -344,17 +278,59 @@ async def voice_server_update(event: hikari.VoiceServerUpdateEvent) -> None:
 @plugin.listener(hikari.VoiceStateUpdateEvent)
 async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
 
+    prev_state = event.old_state
+    cur_state = event.state
+
+    # send event update to lavalink server
     lavalink_data = {
         't': 'VOICE_STATE_UPDATE',
         'd': {
-            'guild_id': event.state.guild_id,
-            'user_id': event.state.user_id,
-            'channel_id': event.state.channel_id,
-            'session_id': event.state.session_id,
+            'guild_id': cur_state.guild_id,
+            'user_id': cur_state.user_id,
+            'channel_id': cur_state.channel_id,
+            'session_id': cur_state.session_id,
         }
     }
 
     await plugin.bot.d.lavalink.voice_update_handler(lavalink_data)
+
+    bot_id = plugin.bot.get_me().id
+    bot_voice_state = plugin.bot.cache.get_voice_state(cur_state.guild_id, bot_id)
+
+    if not bot_voice_state or cur_state.user_id == bot_id:
+        return
+
+    states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
+    
+    # count users in channel with bot
+    cnt_user = len([state[0] for state in filter(lambda i: i[1].channel_id == bot_voice_state.channel_id, states)])
+
+    if cnt_user == 1:  # only bot left in voice
+        await MusicClient(plugin)._leave(cur_state.guild_id)
+        return
+    if cnt_user > 2:  # not just bot & lone user
+        return
+    
+    # resume player when user undeafens
+    if prev_state.is_self_deafened and not cur_state.is_self_deafened:
+
+        player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
+        if player and player.paused:
+            await player.set_pause(False)
+        else:
+            return
+
+        logging.info("Track resumed on guild: %s", event.guild_id)
+    
+    # pause player when user deafens
+    if not prev_state.is_self_deafened and cur_state.is_self_deafened:
+        
+        player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
+        if not player or not player.is_playing:
+            return
+        
+        await player.set_pause(True)
+        logging.info("Track paused on guild: %s", event.guild_id)
 
 
 def load(bot: lightbulb.BotApp) -> None:
