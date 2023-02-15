@@ -3,10 +3,11 @@ import requests
 import os
 import random
 
-class SpotifyClient:
+class Spotify:
     def __init__(self) -> None:
         self.s = requests.Session()
         self.token = self.get_access_token(
+            self.s,
             os.environ['SPOTIFY_CLIENT_ID'],
             os.environ['SPOTIFY_CLIENT_SECRET']
         )
@@ -27,9 +28,9 @@ class SpotifyClient:
         return playlist_id
     
     @staticmethod
-    def get_access_token(client_id, client_secret):
+    def get_access_token(session, client_id, client_secret):
         
-        r = requests.post(
+        r = session.post(
             url='https://accounts.spotify.com/api/token',
             data={"grant_type": "client_credentials"},
             auth=(client_id, client_secret),

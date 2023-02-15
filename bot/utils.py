@@ -2,6 +2,9 @@ import requests
 import urllib.parse
 import os
 
+class MusicCommandError(Exception):
+    pass
+
 def extract_spotify_playlist_id(url):
     parsed_url = urllib.parse.urlparse(url)
 
