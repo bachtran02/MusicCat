@@ -1,28 +1,32 @@
-# REQUIRED: WINDOWS - pip, python, java
+#!/bin/bash
+
+sudo apt install python3.10-venv
+
+FILE=LavalinkServer/Lavalink.jar
+if [[ -f "$FILE" ]];
+then 
+    echo "$FILE file exists."
+else
+    echo "$FILE file doesn't exist"
+    echo "installing latest version of Lavalink.jar..."
+    cd LavalinkServer
+    curl -L https://github.com/freyacodes/Lavalink/releases/latest/download/Lavalink.jar > Lavalink.jar
+    cd ../
+fi
 
 DIR=.venv/
 if [ -d "$DIR" ];
 then
     echo "$DIR directory exists."
-    source .venv/Scripts/activate
+    source .venv/bin/activate
 else
 	echo "$DIR directory does not exist."
     echo "Creating venv..."
 
-    if python -c 'import pkgutil; exit(not pkgutil.find_loader("venv"))'; 
-    then
-        echo 'venv found'
-    else
-        echo 'venv not found'
-        echo "install venv package"
-        python -m pip install --user virtualenv
-
-    fi
-
-    python -m venv .venv
-    source .venv/Scripts/activate
+    python3 -m venv .venv
+    source .venv/bin/activate
     pip install -r requirements.txt
 
 fi
 
-cd lavalink_server && java -jar Lavalink.jar & sleep 8 && python -O -m bot
+cd LavalinkServer && java -jar Lavalink.jar & sleep 8 && python3 -O -m bot
