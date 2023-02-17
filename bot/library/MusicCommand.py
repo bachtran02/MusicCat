@@ -3,6 +3,7 @@ import hikari
 import logging
 
 from bot.utils import MusicCommandError
+from bot.logger import track_logger
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -71,6 +72,7 @@ class MusicCommand:
             for track in tracks:
                 # Add all of the tracks from the playlist to the queue.
                 player.add(requester=author_id, track=track)
+                track_logger.info("%s - %s (%s)", track.title, track.author, track.uri)
 
             embed.description = f"Playlist '{results.playlist_info.name}' ({len(tracks)} added to queue [{author_id}])"
         else:
@@ -78,6 +80,7 @@ class MusicCommand:
             embed.description = f"[{track.title}]({track.uri}) added to queue [<@{author_id}>]"
 
             player.add(requester=author_id, track=track)
+            track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
 
         if not player.is_playing:
             await player.play()
