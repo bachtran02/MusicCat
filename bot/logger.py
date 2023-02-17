@@ -1,11 +1,14 @@
 import os
 import logging.config
 
-log_path = os.path.join(os.getcwd(), 'log')
+track_log_path = os.path.join(os.getcwd(), 'log', 'track.log')
+
+for path in [track_log_path]:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
 
 logging.config.dictConfig({
     'version': 1,
-    'disable_existing_loggers': True,
+    'level': 'DEBUG',
     'loggers': {
         'track_logger': {
             'handlers': ['track_logger_handler'],
@@ -17,7 +20,7 @@ logging.config.dictConfig({
         'track_logger_handler': {
             'class': 'logging.FileHandler',
             'formatter': 'default',
-            'filename': f'{log_path}\\track.log',
+            'filename': track_log_path,
             'mode': 'a',
             'encoding': 'utf-8'
         },
@@ -28,7 +31,6 @@ logging.config.dictConfig({
             'format': '%(asctime)s: %(levelname)s : %(message)s'
         },
     },
-    
 })
 
 

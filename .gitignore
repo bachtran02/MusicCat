@@ -8,3 +8,5 @@ store/
 config/
 .venv/
 log/
+devscripts/
+
