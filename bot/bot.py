@@ -3,11 +3,14 @@ import hikari
 from hikari import Intents
 import lightbulb
 
+from bot.logger import bot_logging_config
+
 bot = lightbulb.BotApp(
     os.environ["TOKEN"],
     intents=(Intents.GUILDS | Intents.GUILD_MESSAGES | Intents.GUILD_VOICE_STATES),
     help_slash_command=True,
     banner=None,
+    logs=bot_logging_config,
 )
 
 # Extension
