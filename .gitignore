@@ -7,3 +7,6 @@ LavalinkServer/logs/
 store/
 config/
 .venv/
+log/
+devscripts/
+

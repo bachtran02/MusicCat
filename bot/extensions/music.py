@@ -225,7 +225,12 @@ async def chill(ctx: lightbulb.Context) -> None:
         next_page_token = res.get('nextPageToken')
 
     assert query is not None
-    await plugin.bot.d.music._play(ctx, ctx.guild_id, ctx.author.id, query)
+    try:
+        e = await plugin.bot.d.music._play(ctx.guild_id, ctx.author.id, query)
+    except MusicCommandError as e:
+        await ctx.respond(e)
+    else:
+        await ctx.respond(embed=e)
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
