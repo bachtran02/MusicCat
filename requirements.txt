@@ -1,6 +1,7 @@
-google_api_python_client==2.77.0
+google_api_python_client==2.78.0
 hikari==2.0.0.dev115
 hikari_lightbulb==2.3.1
-lavalink==4.0.5
+lavalink==4.0.6
 python-dotenv==0.21.1
 requests==2.27.1
+coloredlogs==15.0.1
