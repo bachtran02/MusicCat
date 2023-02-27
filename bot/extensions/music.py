@@ -13,8 +13,6 @@ from bot.library.MusicCommand import MusicCommand
 
 plugin = lightbulb.Plugin("Music", "🎧 Music commands")
 
-url_rx = re.compile(r'https?://(?:www\.)?.+')
-
 class EventHandler:
     """Events from the Lavalink server"""
     
