@@ -79,6 +79,7 @@ async def start_lavalink(event: hikari.ShardReadyEvent) -> None:
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.option("query", "The query to search for.", modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
+@lightbulb.option("loop", "Loops track", choices=['True'], required=False, default=False)
 @lightbulb.command("play", "Searches the query on youtube, or adds the URL to the queue.", auto_defer = True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
@@ -86,7 +87,12 @@ async def play(ctx: lightbulb.Context) -> None:
 
     query = ctx.options.query
     try:
-        e = await plugin.bot.d.music._play(ctx.guild_id, ctx.author.id, query)
+        e = await plugin.bot.d.music._play(
+            guild_id=ctx.guild_id,
+            author_id=ctx.author.id,
+            query=query,
+            loop=(ctx.options.loop == 'True')
+        )
     except MusicCommandError as e:
         await ctx.respond(e)
     else:
@@ -95,7 +101,7 @@ async def play(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("leave", "Leaves the voice channel the bot is in, clearing the queue.")
+@lightbulb.command("leave", "Leaves the voice channel the bot is in, clearing the queue.", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def leave(ctx: lightbulb.Context) -> None:
     """Leaves the voice channel the bot is in, clearing the queue."""
@@ -110,7 +116,7 @@ async def leave(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("join", "Joins the voice channel you are in.")
+@lightbulb.command("join", "Joins the voice channel you are in.", auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def join(ctx: lightbulb.Context) -> None:
     
@@ -124,7 +130,7 @@ async def join(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("stop", "Stops the current song and clears queue.")
+@lightbulb.command("stop", "Stops the current song and clears queue.", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def stop(ctx: lightbulb.Context) -> None:
     """Stops the current song (skip to continue)."""
@@ -139,7 +145,7 @@ async def stop(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("skip", "Skips the current song.")
+@lightbulb.command("skip", "Skips the current song.", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def skip(ctx: lightbulb.Context) -> None:
     """Skips the current song."""
@@ -153,7 +159,7 @@ async def skip(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("pause", "Pauses the current song.")
+@lightbulb.command("pause", "Pauses the current song.", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def pause(ctx: lightbulb.Context) -> None:
     """Pauses the current song."""
@@ -168,7 +174,7 @@ async def pause(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("resume", "Resumes playing the current song.")
+@lightbulb.command("resume", "Resumes playing the current song.", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def resume(ctx: lightbulb.Context) -> None:
     """Resumes playing the current song."""
@@ -183,7 +189,23 @@ async def resume(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("queue", "Shows the next 10 songs in the queue", aliases = ['q'])
+@lightbulb.option("position", "Position to seek (format: '[min]:[sec]' )", required=True)
+@lightbulb.command("seek", "Seeks to a given position in the track", auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def seek(ctx : lightbulb.Context) -> None:
+    
+    pos = ctx.options.position
+    try:
+        e = await plugin.bot.d.music._seek(ctx.guild_id, pos)
+    except MusicCommandError as e:
+        await ctx.respond(e)
+    else:
+        await ctx.respond(embed=e)
+
+
+@plugin.command()
+@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.command("queue", "Shows the next 10 songs in the queue", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def queue(ctx : lightbulb.Context) -> None:
     
@@ -197,7 +219,37 @@ async def queue(ctx : lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command("chill", "Play random linhnhichill", auto_defer = True)
+@lightbulb.option("mode", "Mode for loop", choices=['track', 'queue', 'end'], required=False, default='track')
+@lightbulb.command("loop", "Loops current track or queue or ends loops", auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def loop(ctx : lightbulb.Context) -> None:
+    
+    mode = ctx.options.mode
+    try:
+        e = await plugin.bot.d.music._loop(ctx.guild_id, mode)
+    except MusicCommandError as e:
+        await ctx.respond(e)
+    else:
+        await ctx.respond(embed=e)
+
+
+@plugin.command()
+@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.command("shuffle", "Enable/disable shuffle", auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def shuffle(ctx : lightbulb.Context) -> None:
+    
+    try:
+        e = await plugin.bot.d.music._shuffle(ctx.guild_id)
+    except MusicCommandError as e:
+        await ctx.respond(e)
+    else:
+        await ctx.respond(embed=e)
+
+
+@plugin.command()
+@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.command("chill", "Play random linhnhichill", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def chill(ctx: lightbulb.Context) -> None:
 

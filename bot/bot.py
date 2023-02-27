@@ -19,6 +19,15 @@ bot.load_extensions_from("./bot/extensions", must_exist=True)
 def run() -> None:
     bot.run(
         activity = hikari.Activity(
-            name=f"/play",
-            type=hikari.ActivityType.LISTENING
+        name=f"/play",
+        type=hikari.ActivityType.LISTENING
     ))
+
+# remove duplicated commands
+async def rm_cmd(guild_id=hikari.UNDEFINED):
+    
+    rest = hikari.RESTApp()
+    await rest.start()
+    async with rest.acquire(os.environ["TOKEN"], hikari.TokenType.BOT) as client:
+        application = await client.fetch_application()
+        await client.set_application_commands(application.id, (), guild=guild_id)

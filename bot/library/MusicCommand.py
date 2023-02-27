@@ -5,14 +5,11 @@ import logging
 from bot.utils import MusicCommandError
 from bot.logger import track_logger
 
-url_rx = re.compile(r'https?://(?:www\.)?.+')
-
 class MusicCommand:
     
     def __init__(self, bot) -> None:
         self.bot = bot
     
-    # async def _join(self, ctx: lightbulb.Context) -> Optional[hikari.Snowflake]:
     async def _join(self, guild_id, author_id):
         assert guild_id is not None
 
@@ -38,7 +35,7 @@ class MusicCommand:
         logging.info("Client connected to voice channel on guild: %s", guild_id)
         return channel_id
     
-    async def _play(self, guild_id, author_id, query: str):
+    async def _play(self, guild_id, author_id, query: str, loop=False):
         assert guild_id is not None 
 
         query = query.strip('<>')
@@ -49,6 +46,7 @@ class MusicCommand:
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
 
+        url_rx = re.compile(r'https?://(?:www\.)?.+')
         if not url_rx.match(query):
             query = f'ytsearch:{query}'
 
@@ -84,9 +82,13 @@ class MusicCommand:
 
         if not player.is_playing:
             await player.play()
+            if loop:
+                player.set_loop(1) # 0 = off, 1 = track, 2 = queue
         else:
             logging.info("Track(s) enqueued on guild: %s", guild_id)
-
+            if loop:
+                raise MusicCommandError("Track added to queue! Cannot loop track that is on queue!")
+            
         return embed
 
     async def _leave(self, guild_id: str):
@@ -165,12 +167,71 @@ class MusicCommand:
             colour = 0x76ffa1
         )
     
+    async def _seek(self, guild_id, pos):
+        player = self.bot.d.lavalink.player_manager.get(guild_id)
+        
+        if not player or not player.is_playing:
+            raise MusicCommandError(":warning: Player is not currently playing!")
+
+        pos_rx = re.compile(r'\d+:\d{2}$')
+        if not pos_rx.match(pos):
+            raise MusicCommandError(":warning: Invalid position!")
+        
+        m, s = [int(x) for x in pos.split(':')]
+        ms = m * 60 * 1000 + s * 1000
+        await player.seek(ms)
+
+        return hikari.Embed(
+            description = f":fast_forward: Seek to `{m}:{s:02}`",
+            colour = 0x76ffa1
+        )
+    
+    async def _loop(self, guild_id, mode):
+        player = self.bot.d.lavalink.player_manager.get(guild_id)
+        
+        if not player or not player.is_playing:
+            raise MusicCommandError(":warning: Player is not currently playing!")
+        
+        body = ""
+        if mode == 'end':
+            player.set_loop(0)
+            body = ":track_next: Loop removed!"
+        if mode == 'track':
+            player.set_loop(1)
+            body = f":repeat_one: Track looped!"
+        if mode == 'queue':
+            player.set_loop(2)
+            body = f":repeat: Queue looped!"
+        
+        return hikari.Embed(
+            description = body,
+            colour = 0xf0f8ff
+        )
+    
+    async def _shuffle(self, guild_id):
+        player = self.bot.d.lavalink.player_manager.get(guild_id)
+        
+        if not player or not player.is_playing:
+            raise MusicCommandError(":warning: Player is not currently playing!")
+        
+        player.set_shuffle(not player.shuffle)
+
+        return hikari.Embed(
+            description = ":twisted_rightwards_arrows: " + ("Shuffle enabled" if player.shuffle else "Shuffle disabled"),
+            colour = 0xf0f8ff
+        )
+    
     async def _queue(self, guild_id):
         player = self.bot.d.lavalink.player_manager.get(guild_id)
 
         if not player or not player.is_playing:
             raise MusicCommandError(":warning: Player is not currently playing")
-        
+
+        emj = {
+            player.LOOP_SINGLE: ':repeat_one:',
+            player.LOOP_QUEUE: ':repeat:',
+        }
+
         length = divmod(player.current.duration, 60000)
         queueDescription = f"**Current:** [{player.current.title}]({player.current.uri}) `{int(length[0])}:{round(length[1]/1000):02}` [<@!{player.current.requester}>]"
         i = 0
@@ -182,7 +243,8 @@ class MusicCommand:
             i += 1
 
         return hikari.Embed(
-            title = "🎶 Queue",
+            title = f":musical_note: Queue {emj.get(player.loop, '')} \
+                {':twisted_rightwards_arrows:' if player.shuffle else ''}",
             description = queueDescription,
             colour = 0x76ffa1,
         )
