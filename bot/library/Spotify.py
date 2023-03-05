@@ -1,15 +1,18 @@
 import urllib
 import requests
-import os
 import random
 
 class Spotify:
-    def __init__(self) -> None:
+    def __init__(self, client_id, client_secret) -> None:
+
+        if not (client_id and client_secret):
+            raise KeyError
+
         self.s = requests.Session()
         self.token = self.get_access_token(
             self.s,
-            os.environ['SPOTIFY_CLIENT_ID'],
-            os.environ['SPOTIFY_CLIENT_SECRET']
+            client_id=client_id,
+            client_secret=client_secret
         )
 
     @staticmethod
@@ -18,9 +21,9 @@ class Spotify:
         parsed_url = urllib.parse.urlparse(url)
 
         if parsed_url.scheme != "https" or parsed_url.hostname != "open.spotify.com":
-            return ""
+            return None
         if not parsed_url.path.startswith("/playlist/"):
-            return ""
+            return None
 
         path_parts = parsed_url.path.split("/")
         playlist_id = path_parts[-1]
@@ -39,7 +42,7 @@ class Spotify:
 
         return r.json().get('access_token', '')
     
-    def get_tracks_from_playlist(self, playlist_id):
+    def get_playlist_tracks(self, playlist_id):
         """Get 10 songs in random order from spotify playlist"""
 
         while True: 
@@ -67,7 +70,10 @@ class Spotify:
                     queries.append(search_query)
 
                     i += 1
-                    if i == 10:
+                    if i > 10:
                         break
                     
-                return queries
+                return {
+                    'name': data['name'],
+                    'tracks': queries
+                }

@@ -70,7 +70,7 @@ async def start_lavalink(event: hikari.ShardReadyEvent) -> None:
 
     youtube = build('youtube', 'v3', static_discovery=False, developerKey=os.environ["YOUTUBE_API_KEY"])
     plugin.bot.d.youtube = youtube
-    plugin.bot.d.spotify = Spotify()
+    plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
     plugin.bot.d.music = MusicCommand(plugin.bot)
 
 
@@ -247,13 +247,13 @@ async def shuffle(ctx : lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.option("latest", "Play newest video in playlist", choices=['true'], default=None, required=False)
 @lightbulb.command("chill", "Play random linhnhichill", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def chill(ctx: lightbulb.Context) -> None:
 
     BASE_YT_URL = 'https://www.youtube.com/watch'
-    query = None
-
+    vid_id = None
     rand_vid = -1
     next_page_token = None
     while True:
@@ -264,17 +264,23 @@ async def chill(ctx: lightbulb.Context) -> None:
             maxResults=50
         ).execute()
 
-        if rand_vid == -1:
-            rand_vid = random.randint(0, res['pageInfo']['totalResults'])
-        if rand_vid < 50:
-            vid_id = res['items'][rand_vid]['snippet']['resourceId']['videoId']  # id
-            query = f"{BASE_YT_URL}?v={vid_id}" 
-            break
-
-        rand_vid -= 50
         next_page_token = res.get('nextPageToken')
 
-    assert query is not None
+        if not ctx.options.latest:
+            if rand_vid == -1:
+                rand_vid = random.randint(0, res['pageInfo']['totalResults'])
+            if rand_vid < 50:
+                vid_id = res['items'][rand_vid]['snippet']['resourceId']['videoId']  # id
+                break
+            rand_vid -= 50
+        else:
+            if not next_page_token:
+                vid_id = res['items'][len(res)-1]['snippet']['resourceId']['videoId']  # id
+                break
+
+    assert vid_id is not None
+    query = f"{BASE_YT_URL}?v={vid_id}"
+
     try:
         e = await plugin.bot.d.music._play(ctx.guild_id, ctx.author.id, query)
     except MusicCommandError as e:

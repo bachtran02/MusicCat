@@ -9,6 +9,7 @@ class MusicCommand:
     
     def __init__(self, bot) -> None:
         self.bot = bot
+        self.spotify = bot.d.spotify
     
     async def _join(self, guild_id, author_id):
         assert guild_id is not None
@@ -36,58 +37,75 @@ class MusicCommand:
         return channel_id
     
     async def _play(self, guild_id, author_id, query: str, loop=False):
-        assert guild_id is not None 
+        assert guild_id is not None
 
+        query_type = enumerate(['PLAYLIST', 'TRACK'])
         query = query.strip('<>')
         player = self.bot.d.lavalink.player_manager.get(guild_id)
 
         if not player or not player.is_connected:
             await self._join(guild_id, author_id)
         
+        embed = hikari.Embed(color=0x76ffa1)
         player = self.bot.d.lavalink.player_manager.get(guild_id)
 
-        url_rx = re.compile(r'https?://(?:www\.)?.+')
-        if not url_rx.match(query):
-            query = f'ytsearch:{query}'
+        # if query is spotify playlist url
+        playlist_id = self.spotify.get_playlist_id(query)
+        if playlist_id:
+            query_type = 'PLAYLIST'
+            playlist = self.spotify.get_playlist_tracks(playlist_id)
+            for track in playlist['tracks']:
+                squery = f'ytsearch:{track} lyrics'  # to avoid playing MV (may not work)
+                results = await player.node.get_tracks(squery)
 
-        results = await player.node.get_tracks(query)
+                if not results or not results.tracks:
+                    logging.error("Track not found - lavalink search query: %s", squery)
+                    continue
 
-        if not results or not results.tracks:
-            # return await ctx.respond(':warning: No result for query!')
-            raise MusicCommandError(":warning: No result for query!")
-        
-        embed = hikari.Embed(color=0x76ffa1)
-
-        # Valid loadTypes are:
-        #   TRACK_LOADED    - single video/direct URL)
-        #   PLAYLIST_LOADED - direct URL to playlist)
-        #   SEARCH_RESULT   - query prefixed with either ytsearch: or scsearch:.
-        #   NO_MATCHES      - query yielded no results
-        #   LOAD_FAILED     - most likely, the video encountered an exception during loading.
-        if results.load_type == 'PLAYLIST_LOADED':
-            tracks = results.tracks
-
-            for track in tracks:
-                # Add all of the tracks from the playlist to the queue.
+                track = results.tracks[0]
                 player.add(requester=author_id, track=track)
-                track_logger.info("%s - %s (%s)", track.title, track.author, track.uri)
-
-            embed.description = f"Playlist '{results.playlist_info.name}' ({len(tracks)} added to queue [{author_id}])"
+                track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
+            
+            embed.description = f'Playlist [{playlist["name"]}]({query}) - {len(playlist["tracks"])} tracks added to queue [<@{author_id}>]'
         else:
-            track = results.tracks[0]
-            embed.description = f"[{track.title}]({track.uri}) added to queue [<@{author_id}>]"
+            url_rx = re.compile(r'https?://(?:www\.)?.+')
+            if not url_rx.match(query):
+                query = f'ytsearch:{query}'
 
-            player.add(requester=author_id, track=track)
-            track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
+            results = await player.node.get_tracks(query)
+
+            if not results or not results.tracks:
+                raise MusicCommandError(":warning: No result for query!")
+
+            if results.load_type == 'PLAYLIST_LOADED':  # Youtube playlist
+                query_type = 'PLAYLIST'
+                tracks = results.tracks
+        
+                for track in tracks:
+                    # Add all of the tracks from the playlist to the queue.
+                    player.add(requester=author_id, track=track)
+                    track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
+
+                embed.description = f'Playlist [{results.playlist_info.name}]({query}) - {len(tracks)} tracks added to queue [<@{author_id}>]'
+            else:   # 'SEARCH_RESULT' OR 'TRACK_LOADED'
+                query_type = 'TRACK'
+                track = results.tracks[0]
+                embed.description = f"[{track.title}]({track.uri}) added to queue [<@{author_id}>]"
+
+                player.add(requester=author_id, track=track)
+                track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
 
         if not player.is_playing:
             await player.play()
             if loop:
-                player.set_loop(1) # 0 = off, 1 = track, 2 = queue
+                if query_type == 'PLAYLIST':
+                    player.set_loop(2)
+                else:
+                    player.set_loop(1)
         else:
             logging.info("Track(s) enqueued on guild: %s", guild_id)
             if loop:
-                raise MusicCommandError("Track added to queue! Cannot loop track that is on queue!")
+                raise MusicCommandError("Track(s) added to queue! Cannot enable loop for track(s) that are on queue!")
             
         return embed
 
@@ -113,6 +131,9 @@ class MusicCommand:
             
         player.queue.clear()
         await player.stop()
+        # end loop and disable shuffle
+        player.set_loop(0)
+        player.set_shuffle(False)
 
         logging.info("Player stopped on guild: %s", guild_id)
 
@@ -178,6 +199,10 @@ class MusicCommand:
             raise MusicCommandError(":warning: Invalid position!")
         
         m, s = [int(x) for x in pos.split(':')]
+
+        if s >= 60:
+            raise MusicCommand(":warning: Invalid position!")
+
         ms = m * 60 * 1000 + s * 1000
         await player.seek(ms)
 
@@ -195,13 +220,13 @@ class MusicCommand:
         body = ""
         if mode == 'end':
             player.set_loop(0)
-            body = ":track_next: Loop removed!"
+            body = ":track_next: Disable loop!"
         if mode == 'track':
             player.set_loop(1)
-            body = f":repeat_one: Track looped!"
+            body = f":repeat_one: Enable Track loop!"
         if mode == 'queue':
             player.set_loop(2)
-            body = f":repeat: Queue looped!"
+            body = f":repeat: Enable Queue loop!"
         
         return hikari.Embed(
             description = body,
@@ -243,8 +268,7 @@ class MusicCommand:
             i += 1
 
         return hikari.Embed(
-            title = f":musical_note: Queue {emj.get(player.loop, '')} \
-                {':twisted_rightwards_arrows:' if player.shuffle else ''}",
+            title = f":musical_note: Queue {emj.get(player.loop, '')} {':twisted_rightwards_arrows:' if player.shuffle else ''}",
             description = queueDescription,
             colour = 0x76ffa1,
         )
