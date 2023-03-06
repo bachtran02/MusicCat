@@ -1,15 +1,15 @@
 import re
 import hikari
 import logging
+from requests import HTTPError
 
-from bot.utils import MusicCommandError
+from bot.utils import MusicCommandError, get_spotify_playlist_id
 from bot.logger import track_logger
 
 class MusicCommand:
     
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.spotify = bot.d.spotify
     
     async def _join(self, guild_id, author_id):
         assert guild_id is not None
@@ -50,10 +50,19 @@ class MusicCommand:
         player = self.bot.d.lavalink.player_manager.get(guild_id)
 
         # if query is spotify playlist url
-        playlist_id = self.spotify.get_playlist_id(query)
+        playlist_id = get_spotify_playlist_id(query)
         if playlist_id:
+            if not self.bot.d.spotify:
+                logging.warning("Failed to connect with Spotify API client! Check Spotify credentials")
+                raise MusicCommandError(":warning: Failed to extract Spotify playlist!")
+
             query_type = 'PLAYLIST'
-            playlist = self.spotify.get_playlist_tracks(playlist_id)
+            try:
+                playlist = self.bot.d.spotify.get_playlist_tracks(playlist_id)
+            except HTTPError as e:
+                logging.warning(e)
+                raise MusicCommandError("Playlist not found!")
+            
             for track in playlist['tracks']:
                 squery = f'ytsearch:{track} lyrics'  # to avoid playing MV (may not work)
                 results = await player.node.get_tracks(squery)

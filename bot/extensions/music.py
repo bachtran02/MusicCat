@@ -7,6 +7,9 @@ import lavalink
 import lightbulb
 from googleapiclient.discovery import build
 
+from requests import HTTPError
+from googleapiclient import errors
+
 from bot.utils import MusicCommandError
 from bot.library.Spotify import Spotify
 from bot.library.MusicCommand import MusicCommand
@@ -53,10 +56,9 @@ class EventHandler:
 
 # on ready, connect to lavalink server
 @plugin.listener(hikari.ShardReadyEvent)
-async def start_lavalink(event: hikari.ShardReadyEvent) -> None:
+async def start_bot(event: hikari.ShardReadyEvent) -> None:
 
     client = lavalink.Client(plugin.bot.get_me().id)
-
     client.add_node(
         host='localhost',
         port=int(os.environ['LAVALINK_PORT']),
@@ -64,14 +66,24 @@ async def start_lavalink(event: hikari.ShardReadyEvent) -> None:
         region='us',
         name='default-node'
     )
-
     client.add_event_hooks(EventHandler())
-    plugin.bot.d.lavalink = client
 
-    youtube = build('youtube', 'v3', static_discovery=False, developerKey=os.environ["YOUTUBE_API_KEY"])
-    plugin.bot.d.youtube = youtube
-    plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
-    plugin.bot.d.music = MusicCommand(plugin.bot)
+    plugin.bot.d.lavalink = client
+    plugin.bot.d.music = MusicCommand(plugin.bot) 
+    
+    try:
+        plugin.bot.d.youtube = build('youtube', 'v3', static_discovery=False, developerKey=os.environ["YOUTUBE_API_KEY"])
+    except KeyError as e:
+        logging.warning("Missing Key in .env file - %s", e)
+    except errors.HttpError as e:
+        logging.warning("Google API client error - '%s'", e.reason)
+
+    try:
+        plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
+    except KeyError as e:
+        logging.warning("Missing Key in .env file - %s", e)
+    except HTTPError as e:
+        logging.warning("Spotify API client error - '%s'", e)
 
 
 @plugin.command()
@@ -244,13 +256,17 @@ async def shuffle(ctx : lightbulb.Context) -> None:
     else:
         await ctx.respond(embed=e)
 
-
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.option("latest", "Play newest video in playlist", choices=['true'], default=None, required=False)
 @lightbulb.command("chill", "Play random linhnhichill", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def chill(ctx: lightbulb.Context) -> None:
+
+    if not plugin.bot.d.youtube:
+        logging.warning("Failed to use '/chill'! Check YouTube API credentials")
+        await ctx.respond(":warning: Failed to use command!")
+        return
 
     BASE_YT_URL = 'https://www.youtube.com/watch'
     vid_id = None

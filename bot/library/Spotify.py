@@ -1,4 +1,3 @@
-import urllib
 import requests
 import random
 
@@ -14,21 +13,6 @@ class Spotify:
             client_id=client_id,
             client_secret=client_secret
         )
-
-    @staticmethod
-    def get_playlist_id(url: str):
-
-        parsed_url = urllib.parse.urlparse(url)
-
-        if parsed_url.scheme != "https" or parsed_url.hostname != "open.spotify.com":
-            return None
-        if not parsed_url.path.startswith("/playlist/"):
-            return None
-
-        path_parts = parsed_url.path.split("/")
-        playlist_id = path_parts[-1]
-        
-        return playlist_id
     
     @staticmethod
     def get_access_token(session, client_id, client_secret):
@@ -46,10 +30,13 @@ class Spotify:
         """Get 10 songs in random order from spotify playlist"""
 
         while True: 
-            r = self.s.get(
-                url=f'https://api.spotify.com/v1/playlists/{playlist_id}',
-                headers = {'Authorization': f"Bearer {self.token}"}
-            )
+            try:
+                r = self.s.get(
+                    url=f'https://api.spotify.com/v1/playlists/{playlist_id}',
+                    headers = {'Authorization': f"Bearer {self.token}"}
+                )
+            except requests.HTTPError as e:
+                raise e
 
             data = r.json()
             if 'error' in data:
@@ -70,7 +57,7 @@ class Spotify:
                     queries.append(search_query)
 
                     i += 1
-                    if i > 10:
+                    if i == 10:
                         break
                     
                 return {
