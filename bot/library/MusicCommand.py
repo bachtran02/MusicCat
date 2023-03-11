@@ -4,7 +4,6 @@ import logging
 from requests import HTTPError
 
 from bot.utils import MusicCommandError, get_spotify_playlist_id
-from bot.logger import track_logger
 
 class MusicCommand:
     
@@ -73,7 +72,6 @@ class MusicCommand:
 
                 track = results.tracks[0]
                 player.add(requester=author_id, track=track)
-                track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
             
             embed.description = f'Playlist [{playlist["name"]}]({query}) - {len(playlist["tracks"])} tracks added to queue [<@{author_id}>]'
         else:
@@ -93,7 +91,6 @@ class MusicCommand:
                 for track in tracks:
                     # Add all of the tracks from the playlist to the queue.
                     player.add(requester=author_id, track=track)
-                    track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
 
                 embed.description = f'Playlist [{results.playlist_info.name}]({query}) - {len(tracks)} tracks added to queue [<@{author_id}>]'
             else:   # 'SEARCH_RESULT' OR 'TRACK_LOADED'
@@ -102,7 +99,6 @@ class MusicCommand:
                 embed.description = f"[{track.title}]({track.uri}) added to queue [<@{author_id}>]"
 
                 player.add(requester=author_id, track=track)
-                track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
 
         if not player.is_playing:
             await player.play()
@@ -216,7 +212,7 @@ class MusicCommand:
         await player.seek(ms)
 
         return hikari.Embed(
-            description = f":fast_forward: Seek to `{m}:{s:02}`",
+            description = f":fast_forward: Player moved to `{m}:{s:02}`",
             colour = 0x76ffa1
         )
     

@@ -10,8 +10,10 @@ from googleapiclient.discovery import build
 from requests import HTTPError
 from googleapiclient import errors
 
+from bot.logger import track_logger
 from bot.utils import MusicCommandError
 from bot.library.Spotify import Spotify
+from bot.library.StreamCount import StreamCount
 from bot.library.MusicCommand import MusicCommand
 
 plugin = lightbulb.Plugin("Music", "🎧 Music commands")
@@ -23,14 +25,18 @@ class EventHandler:
     async def track_start(self, event: lavalink.TrackStartEvent):
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+        track = player.current
         
         await plugin.bot.update_presence(
             activity = hikari.Activity(
-            name = f"{player.current.author} - {player.current.title}",
+            name = f"{track.author} - {track.title}",
             type = hikari.ActivityType.LISTENING
         ))
 
         logging.info("Track started on guild: %s", event.player.guild_id)
+        track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
+
+        plugin.bot.d.StreamCount.handle_stream(track)
 
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):
@@ -69,7 +75,8 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     client.add_event_hooks(EventHandler())
 
     plugin.bot.d.lavalink = client
-    plugin.bot.d.music = MusicCommand(plugin.bot) 
+    plugin.bot.d.music = MusicCommand(plugin.bot)
+    plugin.bot.d.StreamCount = StreamCount()
     
     try:
         plugin.bot.d.youtube = build('youtube', 'v3', static_discovery=False, developerKey=os.environ["YOUTUBE_API_KEY"])
@@ -215,6 +222,20 @@ async def seek(ctx : lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.command("restart", "Restart track", auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def restart(ctx : lightbulb.Context) -> None:
+    
+    try:
+        e = await plugin.bot.d.music._seek(ctx.guild_id, '0:00')
+    except MusicCommandError as e:
+        await ctx.respond(e)
+    else:
+        await ctx.respond(embed=e)
+
+
+@plugin.command()
+@lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.command("queue", "Shows the next 10 songs in the queue", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def queue(ctx : lightbulb.Context) -> None:
@@ -303,6 +324,15 @@ async def chill(ctx: lightbulb.Context) -> None:
         await ctx.respond(e)
     else:
         await ctx.respond(embed=e)
+
+
+@plugin.command()
+@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.command("top", "Get tracks with most streams", auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def getTopTracks(ctx : lightbulb.Context) -> None:
+    
+    top_tracks = plugin.bot.d.StreamCount.get_top_tracks()
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
