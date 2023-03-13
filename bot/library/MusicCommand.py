@@ -3,7 +3,7 @@ import hikari
 import logging
 from requests import HTTPError
 
-from bot.utils import MusicCommandError, get_spotify_playlist_id
+from bot.utils import get_spotify_playlist_id
 
 class MusicCommandError(Exception):
     pass

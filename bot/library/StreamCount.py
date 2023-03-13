@@ -13,13 +13,12 @@ class StreamCount:
 
     def handle_stream(self, track: lavalink.AudioTrack):
         
-        trackid = track.uri[32:]
-        if self.db.search(self.q.id == trackid):
-            self.db.update(increment('count'), Query().id == trackid)
+        if self.db.search(self.q.id == track.identifier):
+            self.db.update(increment('count'), Query().id == track.identifier)
         else:
             self.db.insert({
                 'count': 1,
-                'id': trackid,
+                'id': track.identifier,
                 'title': track.title,
                 'url': track.uri,
                 # 'author': track.author
