@@ -30,7 +30,6 @@ class StreamCount:
         all_cnt = self.db.all()
 
         top = min([len(all_cnt), top, 20])
-        top_tracks = heapq.nlargest(2, all_cnt, key=lambda x: x['count'])
-
-        print(top_tracks)
+        top_tracks = heapq.nlargest(top, all_cnt, key=lambda x: x['count'])
+        
         return top_tracks

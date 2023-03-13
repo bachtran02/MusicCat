@@ -5,6 +5,9 @@ from requests import HTTPError
 
 from bot.utils import MusicCommandError, get_spotify_playlist_id
 
+class MusicCommandError(Exception):
+    pass
+
 class MusicCommand:
     
     def __init__(self, bot) -> None:
@@ -30,12 +33,12 @@ class MusicCommand:
             await self.bot.update_voice_state(guild_id, channel_id, self_deaf=True)
             self.bot.d.lavalink.player_manager.create(guild_id=guild_id)  
         except TimeoutError:
-            raise MusicCommandError(":warning: I was unable to connect to the voice channel, maybe missing permissions? or some internal issue.")
+            raise MusicCommandError(":warning: Unable to connect to the voice channel")
         
         logging.info("Client connected to voice channel on guild: %s", guild_id)
         return channel_id
     
-    async def _play(self, guild_id, author_id, query: str, loop=False):
+    async def _play(self, guild_id, author_id, channel_id, query, loop=False, autoplay=False):
         assert guild_id is not None
 
         query_type = enumerate(['PLAYLIST', 'TRACK'])
@@ -47,6 +50,13 @@ class MusicCommand:
         
         embed = hikari.Embed(color=0x76ffa1)
         player = self.bot.d.lavalink.player_manager.get(guild_id)
+        
+        player.store = {
+            'autoplay': True if autoplay else False,
+            'channel_id': channel_id,
+            'requester': author_id,
+            'last_played': None,
+        }
 
         # if query is spotify playlist url
         playlist_id = get_spotify_playlist_id(query)
@@ -121,6 +131,13 @@ class MusicCommand:
         if not player or not player.is_connected:
             raise MusicCommandError(":warning: Bot is not currently in any voice channel!")
 
+        player.store = {
+            'autoplay': False,
+            'channel_id': None,
+            'requester': None,
+            'last_played': None,
+        }
+
         player.queue.clear()  # clear queue
         await player.stop()  # stop player
         await self.bot.update_voice_state(guild_id, None) # disconnect from voice channel
@@ -130,10 +147,17 @@ class MusicCommand:
     async def _stop(self, guild_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-    
+
         if not player:
             raise MusicCommandError(":warning: Nothing to stop")
-            
+        
+        player.store = {
+            'autoplay': False,
+            'channel_id': None,
+            'requester': None,
+            'last_played': None,
+        }
+
         player.queue.clear()
         await player.stop()
         # end loop and disable shuffle

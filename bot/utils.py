@@ -1,9 +1,4 @@
-import requests
 import urllib.parse
-import os
-
-class MusicCommandError(Exception):
-    pass
 
 def get_spotify_playlist_id(url: str):
 

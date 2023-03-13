@@ -11,10 +11,11 @@ from requests import HTTPError
 from googleapiclient import errors
 
 from bot.logger import track_logger
-from bot.utils import MusicCommandError
 from bot.library.Spotify import Spotify
 from bot.library.StreamCount import StreamCount
-from bot.library.MusicCommand import MusicCommand
+from bot.library.MusicCommand import MusicCommand, MusicCommandError
+
+BASE_YT_URL = 'https://www.youtube.com/watch'
 
 plugin = lightbulb.Plugin("Music", "🎧 Music commands")
 
@@ -36,6 +37,7 @@ class EventHandler:
         logging.info("Track started on guild: %s", event.player.guild_id)
         track_logger.info("%s - %s - %s", track.title, track.author, track.uri)
 
+        player.store['last_played'] = track.identifier  
         plugin.bot.d.StreamCount.handle_stream(track)
 
     @lavalink.listener(lavalink.TrackEndEvent)
@@ -49,7 +51,7 @@ class EventHandler:
                     name=f"/play",
                     type=hikari.ActivityType.LISTENING
                 ))
-
+            
         logging.info("Track finished on guild: %s", event.player.guild_id)
 
     @lavalink.listener(lavalink.TrackExceptionEvent)
@@ -58,7 +60,46 @@ class EventHandler:
 
     @lavalink.listener(lavalink.QueueEndEvent)
     async def queue_finish(self, event: lavalink.QueueEndEvent):
-        pass
+        
+        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+
+        # autoplay
+        if not plugin.bot.d.youtube or player.store['autoplay'] is not True:
+            return
+        
+        search = plugin.bot.d.youtube.search().list(
+            part="snippet",
+            type='video',
+            relatedToVideoId=player.store['last_played'],
+            maxResults=10
+        ).execute()
+
+        if not search['items']:
+            return
+        
+        print(len(search['items']))
+
+        video_id = search['items'][random.randint(0, len(search['items']))]['id']['videoId']
+        track_url = f"{BASE_YT_URL}?v={video_id}"
+
+        try:
+            e = await plugin.bot.d.music._play(
+                guild_id=event.player.guild_id,
+                author_id=player.store['requester'],
+                channel_id =player.store['channel_id'],
+                query=track_url,
+                autoplay=True,
+            )
+        except MusicCommandError as e:
+            await plugin.bot.rest.create_message(
+                channel=player.store['channel_id'],
+                content=e
+            )
+        else:
+            await plugin.bot.rest.create_message(
+                channel=player.store['channel_id'],
+                embed=e
+            )
 
 # on ready, connect to lavalink server
 @plugin.listener(hikari.ShardReadyEvent)
@@ -97,6 +138,7 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.option("query", "The query to search for.", modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
 @lightbulb.option("loop", "Loops track", choices=['True'], required=False, default=False)
+@lightbulb.option("autoplay", "Autoplay related track after queue ends", choices=['True'], required=False, default=False)
 @lightbulb.command("play", "Searches the query on youtube, or adds the URL to the queue.", auto_defer = True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
@@ -107,8 +149,10 @@ async def play(ctx: lightbulb.Context) -> None:
         e = await plugin.bot.d.music._play(
             guild_id=ctx.guild_id,
             author_id=ctx.author.id,
+            channel_id = ctx.channel_id,
             query=query,
-            loop=(ctx.options.loop == 'True')
+            loop=(ctx.options.loop == 'True'),
+            autoplay=(ctx.options.autoplay == 'True'),
         )
     except MusicCommandError as e:
         await ctx.respond(e)
@@ -279,7 +323,7 @@ async def shuffle(ctx : lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.option("latest", "Play newest video in playlist", choices=['true'], default=None, required=False)
+@lightbulb.option("latest", "Play newest video in playlist", choices=['True'], default=None, required=False)
 @lightbulb.command("chill", "Play random linhnhichill", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def chill(ctx: lightbulb.Context) -> None:
@@ -288,8 +332,7 @@ async def chill(ctx: lightbulb.Context) -> None:
         logging.warning("Failed to use '/chill'! Check YouTube API credentials")
         await ctx.respond(":warning: Failed to use command!")
         return
-
-    BASE_YT_URL = 'https://www.youtube.com/watch'
+    
     vid_id = None
     rand_vid = -1
     next_page_token = None
@@ -332,7 +375,19 @@ async def chill(ctx: lightbulb.Context) -> None:
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def getTopTracks(ctx : lightbulb.Context) -> None:
     
+    e = hikari.Embed(
+        title="Top Tracks",
+        description=""
+    )
+
     top_tracks = plugin.bot.d.StreamCount.get_top_tracks()
+    for i, track in enumerate(top_tracks):
+        e.description += f"{i + 1} - Streams: {track['count']}" + '\n' + f"[{track['title']}]({track['url']})" + '\n'
+
+    if not e.description:
+        e.description = "No data found!"
+
+    await ctx.respond(embed=e)
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
