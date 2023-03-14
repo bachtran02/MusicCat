@@ -18,14 +18,13 @@ DIR=.venv/
 if [ -d "$DIR" ];
 then
     echo "$DIR directory exists."
-    source .venv/bin/activate
 else
 	echo "$DIR directory does not exist."
     echo "Creating venv..."
 
     python3 -m venv .venv
-    source .venv/bin/activate
 fi
 
+source .venv/bin/activate
 pip install -r requirements.txt
 cd LavalinkServer && java -jar Lavalink.jar & sleep 8 && python3 -O -m bot
