@@ -79,7 +79,7 @@ class EventHandler:
         
         # print(len(search['items']))
 
-        video_id = search['items'][random.randint(0, len(search['items']))]['id']['videoId']
+        video_id = search['items'][random.randint(0, len(search['items']) - 1)]['id']['videoId']
         track_url = f"{BASE_YT_URL}?v={video_id}"
 
         try:
@@ -348,7 +348,7 @@ async def chill(ctx: lightbulb.Context) -> None:
 
         if not ctx.options.latest:
             if rand_vid == -1:
-                rand_vid = random.randint(0, res['pageInfo']['totalResults'])
+                rand_vid = random.randint(0, res['pageInfo']['totalResults'] - 1)
             if rand_vid < 50:
                 vid_id = res['items'][rand_vid]['snippet']['resourceId']['videoId']  # id
                 break
@@ -359,10 +359,14 @@ async def chill(ctx: lightbulb.Context) -> None:
                 break
 
     assert vid_id is not None
-    query = f"{BASE_YT_URL}?v={vid_id}"
 
     try:
-        e = await plugin.bot.d.music._play(ctx.guild_id, ctx.author.id, query)
+        e = await plugin.bot.d.music._play(
+            guild_id=ctx.guild_id, 
+            author_id=ctx.author.id,
+            channel_id=ctx.channel_id,
+            query=f"{BASE_YT_URL}?v={vid_id}",
+        )
     except MusicCommandError as e:
         await ctx.respond(e)
     else:
@@ -373,17 +377,17 @@ async def chill(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.command("top", "Get tracks with most streams", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
-async def getTopTracks(ctx : lightbulb.Context) -> None:
+async def topTracks(ctx : lightbulb.Context) -> None:
     
     e = hikari.Embed(
-        title="Top Tracks",
-        description=""
+        title="Most Streamed Tracks",
+        description="",
+        color=0x76ffa1
     )
 
     top_tracks = plugin.bot.d.StreamCount.get_top_tracks()
     for i, track in enumerate(top_tracks):
-        e.description += f"{i + 1} - Streams: {track['count']}" + '\n' + f"[{track['title']}]({track['url']})" + '\n'
-
+        e.description += f"[{i + 1}. {track['title']}]({track['url']}) ({track['count']})" + '\n'
     if not e.description:
         e.description = "No data found!"
 

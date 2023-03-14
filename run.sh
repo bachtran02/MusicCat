@@ -25,8 +25,7 @@ else
 
     python3 -m venv .venv
     source .venv/bin/activate
-    pip install -r requirements.txt
-
 fi
 
+pip install -r requirements.txt
 cd LavalinkServer && java -jar Lavalink.jar & sleep 8 && python3 -O -m bot

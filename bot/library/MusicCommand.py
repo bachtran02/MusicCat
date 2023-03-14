@@ -38,7 +38,7 @@ class MusicCommand:
         logging.info("Client connected to voice channel on guild: %s", guild_id)
         return channel_id
     
-    async def _play(self, guild_id, author_id, channel_id, query, loop=False, autoplay=False):
+    async def _play(self, guild_id, author_id, query, channel_id, loop=False, autoplay=False):
         assert guild_id is not None
 
         query_type = enumerate(['PLAYLIST', 'TRACK'])
