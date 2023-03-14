@@ -76,8 +76,6 @@ class EventHandler:
 
         if not search['items']:
             return
-        
-        # print(len(search['items']))
 
         video_id = search['items'][random.randint(0, len(search['items']) - 1)]['id']['videoId']
         track_url = f"{BASE_YT_URL}?v={video_id}"
