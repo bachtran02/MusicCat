@@ -3,7 +3,7 @@ import hikari
 from hikari import Intents
 import lightbulb
 
-from bot.logger import bot_logging_config
+from bot.logger.bot_logger import bot_logging_config
 
 bot = lightbulb.BotApp(
     os.environ['TOKEN'],

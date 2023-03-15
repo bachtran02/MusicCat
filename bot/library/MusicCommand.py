@@ -3,7 +3,7 @@ import hikari
 import logging
 from requests import HTTPError
 
-from bot.utils import get_spotify_playlist_id, len_to_str
+from bot.utils import get_spotify_playlist_id, str_from_duration, COLOR_DICT
 
 class MusicCommandError(Exception):
     pass
@@ -13,7 +13,7 @@ class MusicCommand:
     def __init__(self, bot) -> None:
         self.bot = bot
     
-    async def _join(self, guild_id, author_id):
+    async def join(self, guild_id, author_id):
         assert guild_id is not None
 
         states = self.bot.cache.get_voice_states_view_for_guild(guild_id)
@@ -42,11 +42,11 @@ class MusicCommand:
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
         if not player or not player.is_connected:
-            await self._join(guild_id, author_id)
+            await self.join(guild_id, author_id)
             player = self.bot.d.lavalink.player_manager.get(guild_id)
 
         query_type = enumerate(['PLAYLIST', 'TRACK'])
-        embed = hikari.Embed(color=0x76ffa1)
+        embed = hikari.Embed(color=COLOR_DICT['GREEN'])
         query = query.strip('<>')
         
         player.store = {
@@ -161,7 +161,7 @@ class MusicCommand:
 
         return hikari.Embed(
             description = "⏹️ Stopped playing",
-            colour = 0xd25557
+            colour = COLOR_DICT['RED']
         )
     
     async def skip(self, guild_id):
@@ -176,7 +176,7 @@ class MusicCommand:
 
         return hikari.Embed(
             description = f'Skipped: [{cur_track.title}]({cur_track.uri})',
-            colour = 0xd25557
+            colour = COLOR_DICT['RED']
         )
     
     async def pause(self, guild_id):
@@ -190,7 +190,7 @@ class MusicCommand:
         
         return hikari.Embed(
             description = '⏸️ Paused player',
-            colour = 0xf9c62b
+            colour = COLOR_DICT['YELLOW']
         )
     
     async def resume(self, guild_id):
@@ -204,7 +204,7 @@ class MusicCommand:
 
         return hikari.Embed(
             description = '▶️ Resumed player',
-            colour = 0x76ffa1
+            colour = COLOR_DICT['GREEN']
         )
     
     async def seek(self, guild_id, pos):
@@ -223,7 +223,7 @@ class MusicCommand:
 
         return hikari.Embed(
             description = f'⏩ Player moved to `{minute}:{second:02}`',
-            colour = 0x76ffa1
+            colour = COLOR_DICT['BLUE']
         )
     
     async def loop(self, guild_id, mode):
@@ -244,7 +244,7 @@ class MusicCommand:
         
         return hikari.Embed(
             description = body,
-            colour = 0xf0f8ff
+            colour = COLOR_DICT['BLUE']
         )
     
     async def shuffle(self, guild_id):
@@ -256,8 +256,23 @@ class MusicCommand:
         player.set_shuffle(not player.shuffle)
 
         return hikari.Embed(
-            description = '🔀' + ('Shuffle enabled' if player.shuffle else 'Shuffle disabled'),
-            colour = 0xf0f8ff
+            description = f'🔀 {("Shuffle enabled" if player.shuffle else "Shuffle disabled")}',
+            colour = COLOR_DICT['BLUE']
+        )
+    
+    async def autoplay(self, guild_id, channel_id):
+
+        player = self.bot.d.lavalink.player_manager.get(guild_id)
+        if not player or not player.is_playing:
+            raise MusicCommandError('Player is not currently playing!')
+        
+        player.store['autoplay'] = not player.store['autoplay']
+        if player.store['autoplay']:
+             player.store['channel_id'] = channel_id
+
+        return hikari.Embed(
+            description = f'🔀 {("Autoplay enabled" if player.store["autoplay"] else "Autoplay disabled")}',
+            colour = COLOR_DICT['BLUE']
         )
     
     async def queue(self, guild_id):
@@ -274,16 +289,16 @@ class MusicCommand:
 
         shuffle_emj = '🔀' if player.shuffle else ''
 
-        queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) `{len_to_str(player.current.duration)}`  [<@!{player.current.requester}>]'
+        queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) `{str_from_duration(player.current.duration)}`  [<@!{player.current.requester}>]'
         for i in range(min(len(player.queue), 10)):
             if i == 0:
                 queue_description += {'\n' * 2} + '**Up next:**'
             track = player.queue[i]
-            queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{len_to_str(track.duration)}` [<@!{track.requester}>]'
+            queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{str_from_duration(track.duration)}` [<@!{track.requester}>]'
 
         return hikari.Embed(
             title = f'🎵 Queue {loop_emj} {shuffle_emj}',
             description = queue_description,
-            colour = 0x76ffa1,
+            colour = COLOR_DICT['GREEN']
         )
     

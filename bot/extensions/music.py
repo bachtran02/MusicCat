@@ -9,7 +9,7 @@ from googleapiclient import errors
 from googleapiclient.discovery import build
 from requests import HTTPError
 
-from bot.logger import track_logger
+from bot.logger.custom_logger import track_logger
 from bot.library.Spotify import Spotify
 from bot.library.StreamCount import StreamCount
 from bot.library.MusicCommand import MusicCommand, MusicCommandError
@@ -29,7 +29,7 @@ class EventHandler:
         
         await plugin.bot.update_presence(
             activity = hikari.Activity(
-            name = f"{track.author} - {track.title}",
+            name = f'{track.author} - {track.title}',
             type = hikari.ActivityType.LISTENING
         ))
 
@@ -118,16 +118,16 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     try:
         plugin.bot.d.youtube = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
     except KeyError as error:
-        logging.warning('Missing Key in .env file - %s', error)
+        logging.warning('Missing Key in .env file - "%s"', error)
     except errors.HttpError as error:
-        logging.warning('Google API client error - %s', error.reason)
+        logging.warning('Google API client error - "%s"', error.reason)
 
     try:
         plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
     except KeyError as error:
-        logging.warning('Missing Key in .env file - %s', error)
+        logging.warning('Missing Key in .env file - "%s"', error)
     except HTTPError as error:
-        logging.warning('Spotify API client error - %s', error)
+        logging.warning('Spotify API client error - "%s"', error)
 
 
 @plugin.command()
@@ -248,7 +248,7 @@ async def resume(ctx: lightbulb.Context) -> None:
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.option('position', 'Position to seek (format: "[min]:[sec]" )', required=True)
-@lightbulb.command("seek", "Seeks to a given position in the track", auto_defer=True)
+@lightbulb.command('seek', "Seeks to a given position in the track", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def seek(ctx : lightbulb.Context) -> None:
     """Seeks to a position of a track"""
@@ -293,7 +293,7 @@ async def queue(ctx : lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.option('mode"', 'Loop mode', choices=['track', 'queue', 'end'], required=False, default='track')
+@lightbulb.option('mode', 'Loop mode', choices=['track', 'queue', 'end'], required=False, default='track')
 @lightbulb.command('loop', 'Loops current track or queue or ends loops', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def loop(ctx:lightbulb.Context) -> None:
@@ -321,6 +321,22 @@ async def shuffle(ctx:lightbulb.Context) -> None:
         await ctx.respond(error)
     else:
         await ctx.respond(embed=embed)
+
+
+@plugin.command()
+@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.command('autoplay', 'Enable/disable autoplay', auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def autoplay(ctx:lightbulb.Context) -> None:
+    """Autoplay after queue finishes"""
+
+    try:
+        embed = await plugin.bot.d.music.autoplay(ctx.guild_id, ctx.channel_id)
+    except MusicCommandError as error:
+        await ctx.respond(error)
+    else:
+        await ctx.respond(embed=embed)
+
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
@@ -359,7 +375,9 @@ async def chill(ctx: lightbulb.Context) -> None:
                 vid_id = res['items'][len(res)-1]['snippet']['resourceId']['videoId']  # id
                 break
 
-    assert vid_id is not None
+    if not vid_id:
+        await ctx.respond('No search result found!')
+        return
 
     try:
         embed = await plugin.bot.d.music.play(
@@ -378,7 +396,7 @@ async def chill(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.command('top', 'Get tracks with most streams', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
-async def topTracks(ctx : lightbulb.Context) -> None:
+async def toptracks(ctx : lightbulb.Context) -> None:
 
     embed = hikari.Embed(
         title='Most Streamed Tracks',
@@ -386,7 +404,7 @@ async def topTracks(ctx : lightbulb.Context) -> None:
         color=0x76ffa1
     )
 
-    top_tracks = plugin.bot.d.StreamCount.get_top_tracks()
+    top_tracks = plugin.bot.d.StreamCount.get_top_tracks(10)
     for i, track in enumerate(top_tracks):
         embed.description += f'[{i + 1}. {track["title"]}]({track["url"]}) ({track["count"]})' + '\n'
     if not embed.description:
