@@ -67,7 +67,7 @@ class MusicCommand:
                 playlist = self.bot.d.spotify.get_playlist_tracks(playlist_id)
             except HTTPError as error:
                 logging.warning(error)
-                raise MusicCommandError('Playlist not found!') from error
+                raise MusicCommandError('Failed to retrieve playlist due to "%s"', error)
             
             for track in playlist['tracks']:
                 squery = f'ytsearch:{track} lyrics'  # to avoid playing MV (may not work)
@@ -292,7 +292,7 @@ class MusicCommand:
         queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) `{str_from_duration(player.current.duration)}`  [<@!{player.current.requester}>]'
         for i in range(min(len(player.queue), 10)):
             if i == 0:
-                queue_description += {'\n' * 2} + '**Up next:**'
+                queue_description += '\n\n' + '**Up next:**'
             track = player.queue[i]
             queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{str_from_duration(track.duration)}` [<@!{track.requester}>]'
 

@@ -151,7 +151,7 @@ async def play(ctx: lightbulb.Context) -> None:
             autoplay=(ctx.options.autoplay == 'True'),
         )
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -166,7 +166,7 @@ async def leave(ctx: lightbulb.Context) -> None:
     try:
         await plugin.bot.d.music.leave(ctx.guild_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond('Left voice channel!') 
 
@@ -181,7 +181,7 @@ async def join(ctx: lightbulb.Context) -> None:
     try:
         channel_id = await plugin.bot.d.music.join(ctx.guild_id, ctx.author.id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(f'Joined <#{channel_id}>')
 
@@ -196,7 +196,7 @@ async def stop(ctx: lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.stop(ctx.guild_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -211,7 +211,7 @@ async def skip(ctx: lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.skip(ctx.guild_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -225,7 +225,7 @@ async def pause(ctx: lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.pause(ctx.guild_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -240,7 +240,7 @@ async def resume(ctx: lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.resume(ctx.guild_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -257,7 +257,7 @@ async def seek(ctx : lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.seek(ctx.guild_id, pos)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -272,7 +272,7 @@ async def restart(ctx : lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.seek(ctx.guild_id, '0:00')
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -285,8 +285,8 @@ async def queue(ctx : lightbulb.Context) -> None:
     
     try:
         e = await plugin.bot.d.music.queue(ctx.guild_id)
-    except MusicCommandError as e:
-        await ctx.respond(e)
+    except MusicCommandError as error:
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=e)
 
@@ -303,7 +303,7 @@ async def loop(ctx:lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.loop(ctx.guild_id, mode)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -318,7 +318,7 @@ async def shuffle(ctx:lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.shuffle(ctx.guild_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -333,7 +333,7 @@ async def autoplay(ctx:lightbulb.Context) -> None:
     try:
         embed = await plugin.bot.d.music.autoplay(ctx.guild_id, ctx.channel_id)
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -387,7 +387,7 @@ async def chill(ctx: lightbulb.Context) -> None:
             query=f"{BASE_YT_URL}?v={vid_id}",
         )
     except MusicCommandError as error:
-        await ctx.respond(error)
+        await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(embed=embed)
 
@@ -447,7 +447,7 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     bot_id = plugin.bot.get_me().id
     bot_voice_state = plugin.bot.cache.get_voice_state(cur_state.guild_id, bot_id)
 
-    if not bot_voice_state or cur_state.user_id == bot_id:
+    if not bot_voice_state or cur_state.user_id == bot_id:  # bot not in voice || bot triggers event
         return
 
     player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
