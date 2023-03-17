@@ -13,6 +13,7 @@ from bot.logger.custom_logger import track_logger
 from bot.library.Spotify import Spotify
 from bot.library.StreamCount import StreamCount
 from bot.library.MusicCommand import MusicCommand, MusicCommandError
+from bot.utils import COLOR_DICT
 
 BASE_YT_URL = 'https://www.youtube.com/watch'
 
@@ -26,12 +27,13 @@ class EventHandler:
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         track = player.current
-        
+
         await plugin.bot.update_presence(
             activity = hikari.Activity(
-            name = f'{track.author} - {track.title}',
-            type = hikari.ActivityType.LISTENING
-        ))
+                name=track.title,
+                type=hikari.ActivityType.STREAMING,
+                url=track.uri,
+            ),)
 
         player.store['last_played'] = track.identifier
         plugin.bot.d.StreamCount.handle_stream(track)
@@ -41,14 +43,8 @@ class EventHandler:
 
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):
-
-        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-        if not player.queue:
-            await plugin.bot.update_presence(
-                activity = hikari.Activity(
-                    name='/play',
-                    type=hikari.ActivityType.LISTENING
-                ))
+        
+        await plugin.bot.update_presence(activity=None)
         logging.info('Track finished on guild: %s', event.player.guild_id)
 
     @lavalink.listener(lavalink.QueueEndEvent)
@@ -76,10 +72,10 @@ class EventHandler:
         try:
             embed = await plugin.bot.d.music.play(
                 guild_id=event.player.guild_id,
-                author_id=player.store['requester'],
+                author_id=plugin.bot.get_me().id,
                 channel_id =player.store['channel_id'],
                 query=track_url,
-                autoplay=True,
+                autoplay=None,
             )
         except MusicCommandError as error:
             await plugin.bot.rest.create_message(
@@ -134,7 +130,7 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
 @lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.option('query', 'The query to search for.', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
 @lightbulb.option('loop', 'Loops track', choices=['True'], required=False, default=False)
-@lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True'], required=False, default=False)
+@lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
 @lightbulb.command('play', 'Searches the query on youtube, or adds the URL to the queue.', auto_defer = True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
@@ -148,7 +144,7 @@ async def play(ctx: lightbulb.Context) -> None:
             channel_id = ctx.channel_id,
             query=query,
             loop=(ctx.options.loop == 'True'),
-            autoplay=(ctx.options.autoplay == 'True'),
+            autoplay=ctx.options.autoplay,
         )
     except MusicCommandError as error:
         await ctx.respond(f'⚠️ {error}')
@@ -401,7 +397,7 @@ async def toptracks(ctx : lightbulb.Context) -> None:
     embed = hikari.Embed(
         title='Most Streamed Tracks',
         description='',
-        color=0x76ffa1
+        color=COLOR_DICT['GREEN']
     )
 
     top_tracks = plugin.bot.d.StreamCount.get_top_tracks(10)
@@ -448,6 +444,18 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     bot_voice_state = plugin.bot.cache.get_voice_state(cur_state.guild_id, bot_id)
 
     if not bot_voice_state or cur_state.user_id == bot_id:  # bot not in voice || bot triggers event
+        if cur_state.user_id == bot_id and not bot_voice_state:  # bot is disconnected
+            # make sure everything is cleared
+            player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
+            player.store = {
+                'autoplay': False,
+                'channel_id': None,
+                'last_played': None,
+            }
+            player.queue.clear()  # clear queue
+            await player.stop()
+            player.channel_id = None
+            logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
         return
 
     player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
@@ -478,6 +486,18 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
             return
         await player.set_pause(True)
         logging.info('Track paused on guild: %s', event.guild_id)
+
+
+@plugin.set_error_handler
+async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
+    if isinstance(event.exception, lightbulb.CommandInvocationError):
+        await event.context.respond(f'Something went wrong during invocation of command `{event.context.command.name}`.')
+        raise event.exception
+
+    # Unwrap the exception to get the original cause
+    exception = event.exception.__cause__ or event.exception
+    if isinstance(exception, lightbulb.OnlyInGuild):
+        await event.context.respond('Cannot invoke Guild only command')
 
 
 def load(bot: lightbulb.BotApp) -> None:

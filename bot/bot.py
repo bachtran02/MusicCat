@@ -17,11 +17,7 @@ bot = lightbulb.BotApp(
 bot.load_extensions_from('./bot/extensions', must_exist=True)
 
 def run() -> None:
-    bot.run(
-        activity = hikari.Activity(
-        name='/play',
-        type=hikari.ActivityType.LISTENING
-    ))
+    bot.run()
 
 async def remove_command(guild_id=hikari.UNDEFINED):
     

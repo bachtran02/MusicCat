@@ -3,7 +3,7 @@ import hikari
 import logging
 from requests import HTTPError
 
-from bot.utils import get_spotify_playlist_id, str_from_duration, COLOR_DICT
+from bot.utils import get_spotify_playlist_id, ms_to_minsec, COLOR_DICT
 
 class MusicCommandError(Exception):
     pass
@@ -37,7 +37,7 @@ class MusicCommand:
         logging.info('Client connected to voice channel on guild: %s', guild_id)
         return channel_id
     
-    async def play(self, guild_id, author_id, query, channel_id, loop=False, autoplay=False):
+    async def play(self, guild_id, author_id, query, channel_id, loop=False, autoplay=None):
         assert guild_id is not None
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
@@ -49,11 +49,15 @@ class MusicCommand:
         embed = hikari.Embed(color=COLOR_DICT['GREEN'])
         query = query.strip('<>')
         
+        if (not isinstance(player.store, dict)) or autoplay:
+            use_autoplay = autoplay == 'True'
+        else:
+            use_autoplay = player.store['autoplay']
+        
         player.store = {
-            'autoplay': bool(autoplay),
+            'autoplay': use_autoplay,
             'channel_id': channel_id,
-            'requester': author_id,
-            'last_played': None,
+            'last_played': '',
         }
 
         playlist_id = get_spotify_playlist_id(query)
@@ -80,7 +84,7 @@ class MusicCommand:
                 track = results.tracks[0]
                 player.add(requester=author_id, track=track)
             
-            embed.description = f'Playlist [{playlist["name"]}]({query}) - {len(playlist["tracks"])} tracks added to queue [<@{author_id}>]'
+            embed.description = f'Playlist [{playlist["name"]}]({query}) - {len(playlist["tracks"])} tracks added to queue <@{author_id}>'
         else:
             url_rx = re.compile(r'https?://(?:www\.)?.+')
             if not url_rx.match(query):
@@ -99,12 +103,12 @@ class MusicCommand:
                     # Add all of the tracks from the playlist to the queue.
                     player.add(requester=author_id, track=track)
 
-                embed.description = f'Playlist [{results.playlist_info.name}]({query}) - {len(tracks)} tracks added to queue [<@{author_id}>]'
+                embed.description = f'Playlist [{results.playlist_info.name}]({query}) - {len(tracks)} tracks added to queue <@{author_id}>'
             else:   # 'SEARCH_RESULT' OR 'TRACK_LOADED'
                 query_type = 'TRACK'
                 track = results.tracks[0]
                 player.add(requester=author_id, track=track)
-                embed.description = f'[{track.title}]({track.uri}) added to queue [<@{author_id}>]'
+                embed.description = f'[{track.title}]({track.uri}) added to queue <@{author_id}>'
                 
         if not player.is_playing:
             await player.play()
@@ -129,7 +133,6 @@ class MusicCommand:
         player.store = {
             'autoplay': False,
             'channel_id': None,
-            'requester': None,
             'last_played': None,
         }
 
@@ -148,7 +151,6 @@ class MusicCommand:
         player.store = {
             'autoplay': False,
             'channel_id': None,
-            'requester': None,
             'last_played': None,
         }
 
@@ -160,7 +162,7 @@ class MusicCommand:
         logging.info('Player stopped on guild: %s', guild_id)
 
         return hikari.Embed(
-            description = "⏹️ Stopped playing",
+            description = '⏹️ Stopped playing',
             colour = COLOR_DICT['RED']
         )
     
@@ -212,6 +214,8 @@ class MusicCommand:
         player = self.bot.d.lavalink.player_manager.get(guild_id)
         if not player or not player.is_playing:
             raise MusicCommandError('Player is not currently playing!')
+        if not player.current.is_seekable:
+            raise MusicCommandError('Current track is not seekable!')
 
         pos_rx = re.compile(r'\d+:\d{2}$')
         if not pos_rx.match(pos) or int(pos.split(':')[1]) >= 60:
@@ -289,12 +293,18 @@ class MusicCommand:
 
         shuffle_emj = '🔀' if player.shuffle else ''
 
-        queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) `{str_from_duration(player.current.duration)}`  [<@!{player.current.requester}>]'
+        if player.current.stream:
+            playtime = 'LIVE'
+        else:
+            playtime = f'{ms_to_minsec(player.position)}|{ms_to_minsec(player.current.duration)}'
+
+        queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) '
+        queue_description += f'`{playtime}` <@!{player.current.requester}>'
         for i in range(min(len(player.queue), 10)):
             if i == 0:
                 queue_description += '\n\n' + '**Up next:**'
             track = player.queue[i]
-            queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{str_from_duration(track.duration)}` [<@!{track.requester}>]'
+            queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{ms_to_minsec(track.duration)}` <@!{track.requester}>'
 
         return hikari.Embed(
             title = f'🎵 Queue {loop_emj} {shuffle_emj}',

@@ -19,7 +19,7 @@ def get_spotify_playlist_id(url: str):
     path_parts = parsed_url.path.split("/")
     return path_parts[-1]
 
-def str_from_duration(duration: int):  # duration in ms
+def ms_to_minsec(ms: int) -> str:
 
-    length = divmod(duration, 60000)
+    length = divmod(ms, 60000)
     return f'{int(length[0])}:{round(length[1]/1000):02}'

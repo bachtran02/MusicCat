@@ -67,3 +67,6 @@ class Spotify:
                     'tracks': queries
                 }
         raise TimeoutError('Failed to verify credentials')
+    
+    def search(self, query: str):
+        pass
