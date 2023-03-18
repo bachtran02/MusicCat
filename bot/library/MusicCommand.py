@@ -1,9 +1,10 @@
 import re
 import hikari
 import logging
+import random
 from requests import HTTPError
 
-from bot.utils import get_spotify_playlist_id, ms_to_minsec, COLOR_DICT
+from bot.utils import get_spotify_playlist_id, ms_to_minsec, COLOR_DICT, BASE_YT_URL
 
 class MusicCommandError(Exception):
     pass
@@ -12,27 +13,19 @@ class MusicCommand:
     
     def __init__(self, bot) -> None:
         self.bot = bot
-    
+
     async def join(self, guild_id, author_id):
         assert guild_id is not None
 
         states = self.bot.cache.get_voice_states_view_for_guild(guild_id)
-
         voice_state = [state[1] for state in filter(lambda i : i[0] == author_id, states.items())]
-        bot_voice_state = [state[1] for state in filter(lambda i: i[0] == self.bot.get_me().id, states.items())]
-
-        if not voice_state:
-            raise MusicCommandError('Connect to a voice channel first!')
-
         channel_id = voice_state[0].channel_id
-        if bot_voice_state:
-            if channel_id != bot_voice_state[0].channel_id:
-                raise MusicCommandError('I am already playing in another Voice Channel!')
+
         try:
             await self.bot.update_voice_state(guild_id, channel_id, self_deaf=True)
             self.bot.d.lavalink.player_manager.create(guild_id=guild_id)  
         except TimeoutError as error:
-            raise MusicCommandError('Unable to connect to the voice channel!') from error
+            raise TimeoutError('Unable to connect to the voice channel!') from error
         
         logging.info('Client connected to voice channel on guild: %s', guild_id)
         return channel_id
@@ -45,7 +38,7 @@ class MusicCommand:
             await self.join(guild_id, author_id)
             player = self.bot.d.lavalink.player_manager.get(guild_id)
 
-        query_type = enumerate(['PLAYLIST', 'TRACK'])
+        query_type = ''
         embed = hikari.Embed(color=COLOR_DICT['GREEN'])
         query = query.strip('<>')
         
@@ -74,7 +67,7 @@ class MusicCommand:
                 raise MusicCommandError('Failed to retrieve playlist due to "%s"', error)
             
             for track in playlist['tracks']:
-                squery = f'ytsearch:{track} lyrics'  # to avoid playing MV (may not work)
+                squery = f'ytsearch:{track} audio'  # to avoid playing MV (may not work)
                 results = await player.node.get_tracks(squery)
 
                 if not results or not results.tracks:
@@ -123,13 +116,51 @@ class MusicCommand:
             logging.info('Track(s) enqueued on guild: %s', guild_id)
 
         return embed
+    
+    async def autoplay(self, guild_id):
+
+        player = self.bot.d.lavalink.player_manager.get(guild_id)
+        if not self.bot.d.youtube or player.store['autoplay'] is not True:
+            return [None, None]
+        
+        embed = hikari.Embed(color=COLOR_DICT['GREEN'])
+        last_track = player.store['last_played']
+        search = self.bot.d.youtube.search().list(
+            part='snippet',
+            type='video',
+            relatedToVideoId=last_track.identifier,
+            maxResults=10
+        ).execute()
+
+        if not search['items']:
+            raise MusicCommandError('No result for query!')
+
+        items = search['items']
+        top_items = items[:len(items)//2]
+        random.shuffle(top_items)
+
+        for item in top_items + items[len(items)//2:]:
+            yid = item['id']['videoId']
+            trackurl = f'{BASE_YT_URL}?v={yid}'
+
+            results = await player.node.get_tracks(trackurl)
+            if not results or not results.tracks:
+                raise MusicCommandError('No result for query!')
+            
+            track = results.tracks[0]
+            if last_track.duration < 600000 and track.duration > 600000:
+                continue
+
+            player.add(requester=self.bot.get_me().id, track=track)
+            await player.play()
+            embed.description = f'[{track.title}]({track.uri}) added to queue <@{self.bot.get_me().id}>'
+            break
+
+        return [embed, player.store['channel_id']]
 
     async def leave(self, guild_id: str):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_connected:
-            raise MusicCommandError('Bot is not currently in any voice channel!')
-
         player.store = {
             'autoplay': False,
             'channel_id': None,
@@ -145,15 +176,11 @@ class MusicCommand:
     async def stop(self, guild_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player:
-            raise MusicCommandError('Nothing to stop')
-        
         player.store = {
             'autoplay': False,
             'channel_id': None,
             'last_played': None,
         }
-
         player.queue.clear()
         await player.stop()
         # end loop and disable shuffle
@@ -169,9 +196,6 @@ class MusicCommand:
     async def skip(self, guild_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Nothing to skip')
-
         cur_track = player.current
         await player.play()
         logging.info('Track skipped on guild: %s', guild_id)
@@ -184,9 +208,6 @@ class MusicCommand:
     async def pause(self, guild_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Player is not currently playing!')
-           
         await player.set_pause(True)
         logging.info('Track paused on guild: %s', guild_id)
         
@@ -198,10 +219,6 @@ class MusicCommand:
     async def resume(self, guild_id):
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if player and player.paused:
-            await player.set_pause(False)
-        else:
-            raise MusicCommandError('Player is not currently paused!')
         logging.info('Track resumed on guild: %s', guild_id)
 
         return hikari.Embed(
@@ -212,8 +229,6 @@ class MusicCommand:
     async def seek(self, guild_id, pos):
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Player is not currently playing!')
         if not player.current.is_seekable:
             raise MusicCommandError('Current track is not seekable!')
 
@@ -233,8 +248,6 @@ class MusicCommand:
     async def loop(self, guild_id, mode):
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Player is not currently playing!')
         
         if mode == 'track':
             player.set_loop(1)
@@ -254,9 +267,6 @@ class MusicCommand:
     async def shuffle(self, guild_id):
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Player is not currently playing!')
-        
         player.set_shuffle(not player.shuffle)
 
         return hikari.Embed(
@@ -264,12 +274,9 @@ class MusicCommand:
             colour = COLOR_DICT['BLUE']
         )
     
-    async def autoplay(self, guild_id, channel_id):
+    async def flip_autoplay(self, guild_id, channel_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Player is not currently playing!')
-        
         player.store['autoplay'] = not player.store['autoplay']
         if player.store['autoplay']:
              player.store['channel_id'] = channel_id
@@ -282,9 +289,6 @@ class MusicCommand:
     async def queue(self, guild_id):
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not player or not player.is_playing:
-            raise MusicCommandError('Player is not currently playing')
-
         loop_emj = ''
         if player.loop == player.LOOP_SINGLE:
             loop_emj = '🔂'
@@ -296,7 +300,7 @@ class MusicCommand:
         if player.current.stream:
             playtime = 'LIVE'
         else:
-            playtime = f'{ms_to_minsec(player.position)}|{ms_to_minsec(player.current.duration)}'
+            playtime = f'{ms_to_minsec(player.position)} | {ms_to_minsec(player.current.duration)}'
 
         queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) '
         queue_description += f'`{playtime}` <@!{player.current.requester}>'
