@@ -13,9 +13,8 @@ from bot.logger.custom_logger import track_logger
 from bot.library.Spotify import Spotify
 from bot.library.StreamCount import StreamCount
 from bot.library.MusicCommand import MusicCommand, MusicCommandError
-from bot.utils import COLOR_DICT
-
-BASE_YT_URL = 'https://www.youtube.com/watch'
+from bot.library.CustomChecks import valid_user_voice, player_playing, player_connected
+from bot.utils import COLOR_DICT, BASE_YT_URL
 
 plugin = lightbulb.Plugin('Music', '🎧 Music commands')
 
@@ -35,7 +34,7 @@ class EventHandler:
                 url=track.uri,
             ),)
 
-        player.store['last_played'] = track.identifier
+        player.store['last_played'] = track  # lavalink.AudioTrack
         plugin.bot.d.StreamCount.handle_stream(track)
 
         track_logger.info('%s - %s - %s', track.title, track.author, track.uri)
@@ -49,45 +48,21 @@ class EventHandler:
 
     @lavalink.listener(lavalink.QueueEndEvent)
     async def queue_finish(self, event: lavalink.QueueEndEvent):
-        
-        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-        # autoplay
-        if not plugin.bot.d.youtube or player.store['autoplay'] is not True:
-            return
-        
-        search = plugin.bot.d.youtube.search().list(
-            part='snippet',
-            type='video',
-            relatedToVideoId=player.store['last_played'],
-            maxResults=10
-        ).execute()
-
-        if not search['items']:
-            return
-
-        rand_vid = random.randint(0, len(search['items']) - 1)
-        video_id = search['items'][rand_vid]['id']['videoId']
-        track_url = f"{BASE_YT_URL}?v={video_id}"
 
         try:
-            embed = await plugin.bot.d.music.play(
-                guild_id=event.player.guild_id,
-                author_id=plugin.bot.get_me().id,
-                channel_id =player.store['channel_id'],
-                query=track_url,
-                autoplay=None,
-            )
+            [embed, channel_id] = await plugin.bot.d.music.autoplay(event.player.guild_id)
         except MusicCommandError as error:
             await plugin.bot.rest.create_message(
-                channel=player.store['channel_id'],
+                channel=channel_id,
                 content=error
             )
         else:
-            await plugin.bot.rest.create_message(
-                channel=player.store['channel_id'],
-                embed=embed
-            )
-
+            if embed:
+                await plugin.bot.rest.create_message(
+                    channel=channel_id,
+                    embed=embed
+                )
+        
     @lavalink.listener(lavalink.TrackExceptionEvent)
     async def track_exception(self, event: lavalink.TrackExceptionEvent):
         logging.warning('Track exception event happened on guild: %s', event.player.guild_id)
@@ -127,7 +102,10 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+)
 @lightbulb.option('query', 'The query to search for.', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
 @lightbulb.option('loop', 'Loops track', choices=['True'], required=False, default=False)
 @lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
@@ -153,18 +131,18 @@ async def play(ctx: lightbulb.Context) -> None:
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_connected,
+)
 @lightbulb.command('leave', 'Leaves the voice channel the bot is in, clearing the queue.', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def leave(ctx: lightbulb.Context) -> None:
     """Leaves the voice channel the bot is in, clearing the queue."""
 
-    try:
-        await plugin.bot.d.music.leave(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond('Left voice channel!') 
+    await plugin.bot.d.music.leave(ctx.guild_id)
+    await ctx.respond('Left voice channel!') 
 
 
 @plugin.command()
@@ -176,73 +154,77 @@ async def join(ctx: lightbulb.Context) -> None:
     
     try:
         channel_id = await plugin.bot.d.music.join(ctx.guild_id, ctx.author.id)
-    except MusicCommandError as error:
+    except TimeoutError as error:
         await ctx.respond(f'⚠️ {error}')
     else:
         await ctx.respond(f'Joined <#{channel_id}>')
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.command('stop', 'Stops the current song and clears queue.', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def stop(ctx: lightbulb.Context) -> None:
     """Stops the current song (skip to continue)."""
 
-    try:
-        embed = await plugin.bot.d.music.stop(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.stop(ctx.guild_id)
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.command('skip', 'Skips the current song.', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def skip(ctx: lightbulb.Context) -> None:
     """Skips the current song."""
 
-    try:
-        embed = await plugin.bot.d.music.skip(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.skip(ctx.guild_id)
+    await ctx.respond(embed=embed)
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.command('pause', 'Pauses the current song.', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def pause(ctx: lightbulb.Context) -> None:
     """Pauses the current song."""
 
-    try:
-        embed = await plugin.bot.d.music.pause(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.pause(ctx.guild_id)
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_connected,
+)
 @lightbulb.command('resume', 'Resumes playing the current song.', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def resume(ctx: lightbulb.Context) -> None:
     """Resumes playing the current song."""
 
-    try:
-        embed = await plugin.bot.d.music.resume(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.resume(ctx.guild_id)
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.option('position', 'Position to seek (format: "[min]:[sec]" )', required=True)
 @lightbulb.command('seek', "Seeks to a given position in the track", auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
@@ -259,36 +241,39 @@ async def seek(ctx : lightbulb.Context) -> None:
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.command('replay', 'Replay track', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def restart(ctx : lightbulb.Context) -> None:
     """Replay track from the start"""
 
-    try:
-        embed = await plugin.bot.d.music.seek(ctx.guild_id, '0:00')
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.seek(ctx.guild_id, '0:00')
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    player_playing,
+)
 @lightbulb.command('queue', 'Shows the next 10 songs in the queue', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def queue(ctx : lightbulb.Context) -> None:
     
-    try:
-        e = await plugin.bot.d.music.queue(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=e)
+    e = await plugin.bot.d.music.queue(ctx.guild_id)
+    await ctx.respond(embed=e)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.option('mode', 'Loop mode', choices=['track', 'queue', 'end'], required=False, default='track')
 @lightbulb.command('loop', 'Loops current track or queue or ends loops', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
@@ -296,46 +281,46 @@ async def loop(ctx:lightbulb.Context) -> None:
     """Loop player by track or queue"""
 
     mode = ctx.options.mode
-    try:
-        embed = await plugin.bot.d.music.loop(ctx.guild_id, mode)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.loop(ctx.guild_id, mode)
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.command('shuffle', 'Enable/disable shuffle', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def shuffle(ctx:lightbulb.Context) -> None:
     """Shuffle queue"""
 
-    try:
-        embed = await plugin.bot.d.music.shuffle(ctx.guild_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.shuffle(ctx.guild_id)
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_playing,
+)
 @lightbulb.command('autoplay', 'Enable/disable autoplay', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
-async def autoplay(ctx:lightbulb.Context) -> None:
+async def flip_autoplay(ctx:lightbulb.Context) -> None:
     """Autoplay after queue finishes"""
 
-    try:
-        embed = await plugin.bot.d.music.autoplay(ctx.guild_id, ctx.channel_id)
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    embed = await plugin.bot.d.music.flip_autoplay(ctx.guild_id, ctx.channel_id)
+    await ctx.respond(embed=embed)
 
 
 @plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+    valid_user_voice,
+    player_connected,
+)
 @lightbulb.option('latest', 'Play newest video in playlist', choices=['True'], default=None, required=False)
 @lightbulb.command('chill', 'Play random linhnhichill', auto_defer=True)
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
@@ -457,6 +442,9 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
             player.channel_id = None
             logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
         return
+    
+    if cur_state.channel_id != bot_voice_state.channel_id:  # not in same voice channel as bot
+        return
 
     player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
     states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
@@ -490,14 +478,12 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
 
 @plugin.set_error_handler
 async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
-    if isinstance(event.exception, lightbulb.CommandInvocationError):
-        await event.context.respond(f'Something went wrong during invocation of command `{event.context.command.name}`.')
-        raise event.exception
 
-    # Unwrap the exception to get the original cause
-    exception = event.exception.__cause__ or event.exception
+    exception = event.exception
     if isinstance(exception, lightbulb.OnlyInGuild):
-        await event.context.respond('Cannot invoke Guild only command')
+        await event.context.respond('⚠️ Cannot invoke Guild only command')
+    if isinstance(exception, lightbulb.CheckFailure):
+        await event.context.respond(f'⚠️ {exception}')
 
 
 def load(bot: lightbulb.BotApp) -> None:
