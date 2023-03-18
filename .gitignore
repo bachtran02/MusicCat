@@ -9,4 +9,5 @@ config/
 .venv/
 logs/
 devscripts/
+test.py
 
