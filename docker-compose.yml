@@ -1,0 +1,19 @@
+version: '2.15'
+
+services:
+  lavalink:
+    build:
+      context: ./LavalinkServer
+      dockerfile: Dockerfile
+    volumes:
+      - ./LavalinkServer/logs:/logs
+    expose:
+      - 2333
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./logs:/logs
+
