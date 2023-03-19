@@ -4,7 +4,8 @@ import logging
 import random
 from requests import HTTPError
 
-from bot.utils import get_spotify_playlist_id, ms_to_minsec, COLOR_DICT, BASE_YT_URL
+from bot.utils import get_spotify_playlist_id, duration_str
+from bot.constants import COLOR_DICT, BASE_YT_URL
 
 class MusicCommandError(Exception):
     pass
@@ -219,6 +220,7 @@ class MusicCommand:
     async def resume(self, guild_id):
         
         player = self.bot.d.lavalink.player_manager.get(guild_id)
+        await player.set_pause(False)
         logging.info('Track resumed on guild: %s', guild_id)
 
         return hikari.Embed(
@@ -300,7 +302,7 @@ class MusicCommand:
         if player.current.stream:
             playtime = 'LIVE'
         else:
-            playtime = f'{ms_to_minsec(player.position)} | {ms_to_minsec(player.current.duration)}'
+            playtime = f'{duration_str(player.position)} | {duration_str(player.current.duration)}'
 
         queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) '
         queue_description += f'`{playtime}` <@!{player.current.requester}>'
@@ -308,7 +310,7 @@ class MusicCommand:
             if i == 0:
                 queue_description += '\n\n' + '**Up next:**'
             track = player.queue[i]
-            queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{ms_to_minsec(track.duration)}` <@!{track.requester}>'
+            queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{duration_str(track.duration)}` <@!{track.requester}>'
 
         return hikari.Embed(
             title = f'🎵 Queue {loop_emj} {shuffle_emj}',

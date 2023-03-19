@@ -14,7 +14,7 @@ from bot.library.Spotify import Spotify
 from bot.library.StreamCount import StreamCount
 from bot.library.MusicCommand import MusicCommand, MusicCommandError
 from bot.library.CustomChecks import valid_user_voice, player_playing, player_connected
-from bot.utils import COLOR_DICT, BASE_YT_URL
+from bot.constants import COLOR_DICT, BASE_YT_URL
 
 plugin = lightbulb.Plugin('Music', '🎧 Music commands')
 
@@ -74,6 +74,7 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
 
     client = lavalink.Client(plugin.bot.get_me().id)
     client.add_node(
+        # host='lavalink',
         host='localhost',
         port=int(os.environ['LAVALINK_PORT']),
         password=os.environ['LAVALINK_PASS'],
@@ -319,7 +320,6 @@ async def flip_autoplay(ctx:lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only,
     valid_user_voice,
-    player_connected,
 )
 @lightbulb.option('latest', 'Play newest video in playlist', choices=['True'], default=None, required=False)
 @lightbulb.command('chill', 'Play random linhnhichill', auto_defer=True)
@@ -443,7 +443,7 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
             logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
         return
     
-    if cur_state.channel_id != bot_voice_state.channel_id:  # not in same voice channel as bot
+    if (prev_state.channel_id or cur_state.channel_id) != bot_voice_state.channel_id:  # not in same voice channel as bot
         return
 
     player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
