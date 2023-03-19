@@ -12,16 +12,21 @@ def get_spotify_playlist_id(url: str):
     path_parts = parsed_url.path.split("/")
     return path_parts[-1]
 
-def ms_to_minsec(ms: int) -> str:
+def convert_ms(ms) -> str:
 
-    length = divmod(ms, 60000)
-    return f'{int(length[0])}:{round(length[1]/1000):02}'
+    ms = round(ms)
+    total_seconds = ms // 1000
 
-COLOR_DICT = {
-    'RED': 0xd25557,
-    'BLUE': 0x00E7FF ,
-    'YELLOW': 0xf9c62b,
-    'GREEN': 0x76ffa1,
-}
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
 
-BASE_YT_URL = 'https://www.youtube.com/watch'
+    return (hours, minutes, seconds)
+
+def duration_str(duration):
+    
+    time = convert_ms(duration)
+    timestr = f'{time[0]}:{time[1]:02}' if time[0] else f'{time[1]}'
+    timestr += f':{time[2]:02}'
+
+    return timestr

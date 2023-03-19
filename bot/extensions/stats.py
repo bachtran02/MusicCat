@@ -5,7 +5,8 @@ import hikari
 import lavalink
 import lightbulb
 
-from bot.utils import ms_to_minsec, COLOR_DICT
+from bot.utils import duration_str
+from bot.constants import COLOR_DICT
 
 plugin = lightbulb.Plugin('Stats', 'Stats commands')
 
@@ -28,7 +29,7 @@ async def stats(ctx: lightbulb.Context) -> None:
     for i, node in enumerate(node_manager.nodes):
         stats = node.stats
         field_body = ''
-        field_body += f'Uptime: `{ms_to_minsec(stats.uptime)}`'+ '\n'
+        field_body += f'Uptime: `{duration_str(stats.uptime)}`'+ '\n'
         field_body += f'Players: `{stats.players} ({stats.playing_players} playing)`' + '\n'
         field_body += f'Memory: `{round(stats.memory_used/1e6)} MB ({round(100*stats.memory_used/stats.memory_allocated)}%)`'  + '\n'
         field_body += f'Lavalink load: `{round(stats.lavalink_load*100, 2)}%`' + '\n'
