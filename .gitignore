@@ -10,4 +10,4 @@ config/
 logs/
 devscripts/
 test.py
-
+run.sh

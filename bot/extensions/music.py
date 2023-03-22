@@ -14,9 +14,9 @@ from bot.library.Spotify import Spotify
 from bot.library.StreamCount import StreamCount
 from bot.library.MusicCommand import MusicCommand, MusicCommandError
 from bot.library.CustomChecks import valid_user_voice, player_playing, player_connected
-from bot.constants import COLOR_DICT, BASE_YT_URL
+from bot.constants import COLOR_DICT, BASE_YT_URL, PLAYER_STORE_INIT
 
-plugin = lightbulb.Plugin('Music', '🎧 Music commands')
+plugin = lightbulb.Plugin('Music', 'Music commands')
 
 class EventHandler:
     """Events from the Lavalink server"""
@@ -33,7 +33,6 @@ class EventHandler:
                 type=hikari.ActivityType.STREAMING,
                 url=track.uri,
             ),)
-
         player.store['last_played'] = track  # lavalink.AudioTrack
         plugin.bot.d.StreamCount.handle_stream(track)
 
@@ -43,12 +42,16 @@ class EventHandler:
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):
         
-        await plugin.bot.update_presence(activity=None)
+        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         logging.info('Track finished on guild: %s', event.player.guild_id)
 
     @lavalink.listener(lavalink.QueueEndEvent)
     async def queue_finish(self, event: lavalink.QueueEndEvent):
 
+        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+        if not (plugin.bot.d.youtube and player.store['autoplay']):
+            await plugin.bot.update_presence(activity=None)
+            return
         try:
             [embed, channel_id] = await plugin.bot.d.music.autoplay(event.player.guild_id)
         except MusicCommandError as error:
@@ -62,6 +65,7 @@ class EventHandler:
                     channel=channel_id,
                     embed=embed
                 )
+        logging.info('Queue finished on guild: %s', event.player.guild_id)
         
     @lavalink.listener(lavalink.TrackExceptionEvent)
     async def track_exception(self, event: lavalink.TrackExceptionEvent):
@@ -89,17 +93,12 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     
     try:
         plugin.bot.d.youtube = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
-    except KeyError as error:
-        logging.warning('Missing Key in .env file - "%s"', error)
-    except errors.HttpError as error:
-        logging.warning('Google API client error - "%s"', error.reason)
-
+    except (KeyError | errors.HTTPError) as error:
+        logging.warning('Failed to build YouTube client - "%s"', error)
     try:
         plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
-    except KeyError as error:
-        logging.warning('Missing Key in .env file - "%s"', error)
-    except HTTPError as error:
-        logging.warning('Spotify API client error - "%s"', error)
+    except (KeyError | errors.HTTPError) as error:
+        logging.warning('Failed to build Spotify client - "%s"', error)
 
 
 @plugin.command()
@@ -108,6 +107,7 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     valid_user_voice,
 )
 @lightbulb.option('query', 'The query to search for.', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
+@lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default=False)
 @lightbulb.option('loop', 'Loops track', choices=['True'], required=False, default=False)
 @lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
 @lightbulb.command('play', 'Searches the query on youtube, or adds the URL to the queue.', auto_defer = True)
@@ -122,6 +122,7 @@ async def play(ctx: lightbulb.Context) -> None:
             author_id=ctx.author.id,
             channel_id = ctx.channel_id,
             query=query,
+            index=0 if ctx.options.next else None,
             loop=(ctx.options.loop == 'True'),
             autoplay=ctx.options.autoplay,
         )
@@ -326,51 +327,27 @@ async def flip_autoplay(ctx:lightbulb.Context) -> None:
 @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
 async def chill(ctx: lightbulb.Context) -> None:
 
-    if not plugin.bot.d.youtube:
-        logging.warning('Failed to use "/chill"! Check YouTube API credentials')
-        await ctx.respond(':warning: Failed to use command!')
-        return
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    if not player or not player.is_connected:
+        await plugin.bot.d.music.join(ctx.guild_id, ctx.author.id)
+        player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+
+    query = f'{BASE_YT_URL}/playlist?list=PL-F2EKRbzrNS0mQqAW6tt75FTgf4j5gjS'
+    results = await player.node.get_tracks(query)
+
+    if not results.load_type == 'PLAYLIST_LOADED':
+        await ctx.respond('⚠️ Failed to load track!')
+
+    track = results.tracks[random.randrange(len(results.tracks))]
+    player.add(track=track, requester=ctx.author.id)
+    if not player.is_playing:
+        await player.play()
     
-    vid_id = None
-    rand_vid = -1
-    next_page_token = None
-    while True:
-        res = plugin.bot.d.youtube.playlistItems().list(
-            playlistId='PL-F2EKRbzrNS0mQqAW6tt75FTgf4j5gjS',  # linhnhichill's playlist ID
-            part='snippet',
-            pageToken = next_page_token,
-            maxResults=50
-        ).execute()
-
-        next_page_token = res.get('nextPageToken')
-
-        if not ctx.options.latest:
-            if rand_vid == -1:
-                rand_vid = random.randint(0, res['pageInfo']['totalResults'] - 1)
-            if rand_vid < 50:
-                vid_id = res['items'][rand_vid]['snippet']['resourceId']['videoId']  # id
-                break
-            rand_vid -= 50
-        else:
-            if not next_page_token:
-                vid_id = res['items'][len(res)-1]['snippet']['resourceId']['videoId']  # id
-                break
-
-    if not vid_id:
-        await ctx.respond('No search result found!')
-        return
-
-    try:
-        embed = await plugin.bot.d.music.play(
-            guild_id=ctx.guild_id, 
-            author_id=ctx.author.id,
-            channel_id=ctx.channel_id,
-            query=f"{BASE_YT_URL}?v={vid_id}",
-        )
-    except MusicCommandError as error:
-        await ctx.respond(f'⚠️ {error}')
-    else:
-        await ctx.respond(embed=embed)
+    await ctx.respond(
+        embed=hikari.Embed(
+            description=f'[{track.title}]({track.uri}) added to queue <@{ctx.author.id}>',
+            color=COLOR_DICT['GREEN']
+    ))
 
 
 @plugin.command()
@@ -428,23 +405,15 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     bot_id = plugin.bot.get_me().id
     bot_voice_state = plugin.bot.cache.get_voice_state(cur_state.guild_id, bot_id)
 
-    if not bot_voice_state or cur_state.user_id == bot_id:  # bot not in voice || bot triggers event
-        if cur_state.user_id == bot_id and not bot_voice_state:  # bot is disconnected
-            # make sure everything is cleared
-            player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
-            player.store = {
-                'autoplay': False,
-                'channel_id': None,
-                'last_played': None,
-            }
-            player.queue.clear()  # clear queue
-            await player.stop()
-            player.channel_id = None
-            logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
+    if not bot_voice_state or cur_state.user_id == bot_id: # bot is disconnected by user or leave on command
+        if not bot_voice_state and cur_state.user_id == bot_id :  
+            await plugin.bot.d.music.leave(cur_state.guild_id)
         return
     
-    if (prev_state.channel_id or cur_state.channel_id) != bot_voice_state.channel_id:  # not in same voice channel as bot
-        return
+    # event occurs in channel not same as bot
+    if not ((prev_state and prev_state.channel_id == bot_voice_state.channel_id) or
+        (cur_state and cur_state.channel_id == bot_voice_state.channel_id)):
+            return
 
     player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
     states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
@@ -481,7 +450,7 @@ async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
 
     exception = event.exception
     if isinstance(exception, lightbulb.OnlyInGuild):
-        await event.context.respond('⚠️ Cannot invoke Guild only command')
+        await event.context.respond('⚠️ Cannot invoke Guild only command in DMs')
     if isinstance(exception, lightbulb.CheckFailure):
         await event.context.respond(f'⚠️ {exception}')
 

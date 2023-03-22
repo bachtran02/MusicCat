@@ -5,10 +5,10 @@ import random
 from requests import HTTPError
 
 from bot.utils import get_spotify_playlist_id, duration_str
-from bot.constants import COLOR_DICT, BASE_YT_URL
+from bot.constants import COLOR_DICT, BASE_YT_URL, PLAYER_STORE_INIT
 
 class MusicCommandError(Exception):
-    pass
+    """Raised when there is an error while calling a method in MusicCommand"""
 
 class MusicCommand:
     
@@ -24,14 +24,20 @@ class MusicCommand:
 
         try:
             await self.bot.update_voice_state(guild_id, channel_id, self_deaf=True)
-            self.bot.d.lavalink.player_manager.create(guild_id=guild_id)  
+            player = self.bot.d.lavalink.player_manager.create(guild_id=guild_id)
+            # initialize store
+            player.store = PLAYER_STORE_INIT
         except TimeoutError as error:
             raise TimeoutError('Unable to connect to the voice channel!') from error
         
         logging.info('Client connected to voice channel on guild: %s', guild_id)
         return channel_id
     
-    async def play(self, guild_id, author_id, query, channel_id, loop=False, autoplay=None):
+    async def play(
+            self, guild_id, author_id, query,
+            channel_id=None, loop=False, autoplay=None, index=None,
+        ):
+    
         assert guild_id is not None
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
@@ -41,26 +47,21 @@ class MusicCommand:
 
         query_type = ''
         embed = hikari.Embed(color=COLOR_DICT['GREEN'])
-        query = query.strip('<>')
         
         if (not isinstance(player.store, dict)) or autoplay:
             use_autoplay = autoplay == 'True'
         else:
             use_autoplay = player.store['autoplay']
         
-        player.store = {
-            'autoplay': use_autoplay,
-            'channel_id': channel_id,
-            'last_played': '',
-        }
+        player.store['autoplay'] = use_autoplay
+        player.store['channel_id'] = channel_id
 
+        query = query.strip('<>')  # to suppress embed on Discord 
         playlist_id = get_spotify_playlist_id(query)
-        if playlist_id:  # if query is spotify playlist url
+        if playlist_id:  # Spotify Playlist
             if not self.bot.d.spotify:
                 logging.warning('Failed to connect with Spotify API client! Check Spotify credentials')
                 raise MusicCommandError('Failed to extract Spotify playlist!')
-
-            query_type = 'PLAYLIST'
             try:
                 playlist = self.bot.d.spotify.get_playlist_tracks(playlist_id)
             except HTTPError as error:
@@ -79,7 +80,8 @@ class MusicCommand:
                 player.add(requester=author_id, track=track)
             
             embed.description = f'Playlist [{playlist["name"]}]({query}) - {len(playlist["tracks"])} tracks added to queue <@{author_id}>'
-        else:
+            query_type = 'PLAYLIST'
+        else:  # track name | track url | playlist url
             url_rx = re.compile(r'https?://(?:www\.)?.+')
             if not url_rx.match(query):
                 query = f'ytsearch:{query}'
@@ -89,43 +91,34 @@ class MusicCommand:
             if not results or not results.tracks:
                 raise MusicCommandError('No result for query!')
 
-            if results.load_type == 'PLAYLIST_LOADED':  # Youtube playlist
-                query_type = 'PLAYLIST'
+            if results.load_type == 'PLAYLIST_LOADED':  # YouTube playlist
                 tracks = results.tracks
-        
                 for track in tracks:
                     # Add all of the tracks from the playlist to the queue.
                     player.add(requester=author_id, track=track)
 
                 embed.description = f'Playlist [{results.playlist_info.name}]({query}) - {len(tracks)} tracks added to queue <@{author_id}>'
+                query_type = 'PLAYLIST'
             else:   # 'SEARCH_RESULT' OR 'TRACK_LOADED'
-                query_type = 'TRACK'
                 track = results.tracks[0]
-                player.add(requester=author_id, track=track)
+                player.add(requester=author_id, track=track, index=index)
                 embed.description = f'[{track.title}]({track.uri}) added to queue <@{author_id}>'
+                query_type = 'TRACK'
                 
         if not player.is_playing:
             await player.play()
             if loop:
-                if query_type == 'PLAYLIST':
-                    player.set_loop(2)  # loop queue if playlist is added
-                else:
-                    player.set_loop(1) # loop track if single track is added
-        else:
-            if loop:
-                raise MusicCommandError('Track(s) added to queue! Cannot enable loop for track(s) that are on queue!')
-            logging.info('Track(s) enqueued on guild: %s', guild_id)
-
+                player.set_loop(1 if query_type=='TRACK' else 2) # loop track if single track is added
         return embed
     
     async def autoplay(self, guild_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        if not self.bot.d.youtube or player.store['autoplay'] is not True:
-            return [None, None]
         
+        botid = self.bot.get_me().id
         embed = hikari.Embed(color=COLOR_DICT['GREEN'])
         last_track = player.store['last_played']
+        
         search = self.bot.d.youtube.search().list(
             part='snippet',
             type='video',
@@ -142,7 +135,7 @@ class MusicCommand:
 
         for item in top_items + items[len(items)//2:]:
             yid = item['id']['videoId']
-            trackurl = f'{BASE_YT_URL}?v={yid}'
+            trackurl = f'{BASE_YT_URL}/watch?v={yid}'
 
             results = await player.node.get_tracks(trackurl)
             if not results or not results.tracks:
@@ -152,9 +145,9 @@ class MusicCommand:
             if last_track.duration < 600000 and track.duration > 600000:
                 continue
 
-            player.add(requester=self.bot.get_me().id, track=track)
-            await player.play()
-            embed.description = f'[{track.title}]({track.uri}) added to queue <@{self.bot.get_me().id}>'
+            track.requester = botid
+            await player.play(track=track, no_replace=True)
+            embed.description = f'[{track.title}]({track.uri}) added to queue <@{botid}>'
             break
 
         return [embed, player.store['channel_id']]
@@ -162,31 +155,24 @@ class MusicCommand:
     async def leave(self, guild_id: str):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        player.store = {
-            'autoplay': False,
-            'channel_id': None,
-            'last_played': None,
-        }
-
+        player.store = PLAYER_STORE_INIT
         player.queue.clear()  # clear queue
-        await player.stop()  # stop player
         player.channel_id = None
+        await player.stop()  # stop player
+        await self.bot.update_presence(activity=None) # clear presence
         await self.bot.update_voice_state(guild_id, None) # disconnect from voice channel
+        
         logging.info('Client disconnected from voice on guild: %s', guild_id)
     
     async def stop(self, guild_id):
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        player.store = {
-            'autoplay': False,
-            'channel_id': None,
-            'last_played': None,
-        }
+        player.store = PLAYER_STORE_INIT
+        player.set_loop(0)  # end any loop
+        player.set_shuffle(False)  # disable shuffle
         player.queue.clear()
         await player.stop()
-        # end loop and disable shuffle
-        player.set_loop(0)
-        player.set_shuffle(False)
+        await self.bot.update_presence(activity=None) # clear presence
         logging.info('Player stopped on guild: %s', guild_id)
 
         return hikari.Embed(
@@ -198,7 +184,7 @@ class MusicCommand:
 
         player = self.bot.d.lavalink.player_manager.get(guild_id)
         cur_track = player.current
-        await player.play()
+        await player.skip()
         logging.info('Track skipped on guild: %s', guild_id)
 
         return hikari.Embed(
