@@ -9,11 +9,14 @@ services:
       - ./LavalinkServer/logs:/logs
     expose:
       - 2333
+    restart: always
 
   bot:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - lavalink
     volumes:
       - ./logs:/logs
-
+    restart: always
