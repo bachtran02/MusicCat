@@ -2,6 +2,8 @@ import requests
 import random
 import time
 import threading
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 class Spotify:
     def __init__(self, client_id, client_secret) -> None:
@@ -13,13 +15,11 @@ class Spotify:
         self.client_secret = client_secret
         self.s = requests.Session()
 
-        self.token = self.get_access_token(
-            self.s,
-            client_id=self.client_id,
-            client_secret=self.client_secret
-        )
-        self._thread = None
-        self.start_token_thread()
+        self.update_token()
+
+        sched = BackgroundScheduler(daemon=True)
+        sched.add_job(self.update_token, CronTrigger(hour='*'))
+        sched.start()
 
     @staticmethod
     def get_access_token(session, client_id, client_secret):
@@ -33,24 +33,15 @@ class Spotify:
         res = r.json()
         return res.get('access_token', '')
     
-    def start_token_thread(self):
-
-        if self._thread is None or not self._thread.is_alive():
-            self._thread = threading.Thread(target=self.update_token)
-            self._thread.start()
-    
     def update_token(self):
-
-        while True:
-            try:
-                self.token = self.get_access_token(
-                    self.s,
-                    client_id=self.client_id,
-                    client_secret=self.client_secret
-                )
-            except requests.HTTPError as error:
-                raise TimeoutError('Failed to verify credentials') from error
-            time.sleep(3500)  # ~ one hour interval
+        try:
+            self.token = self.get_access_token(
+                self.s,
+                client_id=self.client_id,
+                client_secret=self.client_secret
+            )
+        except requests.HTTPError as error:
+            raise TimeoutError('Failed to verify credentials') from error
             
     def get_playlist_tracks(self, playlist_id):
         """Get 10 songs in random order from spotify playlist"""
@@ -108,4 +99,3 @@ class Spotify:
         data = r.json()
         track = data['tracks'][0]
         return track
-
