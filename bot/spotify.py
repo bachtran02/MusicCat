@@ -13,18 +13,18 @@ class Spotify:
         
         self.client_id = client_id
         self.client_secret = client_secret
-        self.s = requests.Session()
 
         self.update_token()
 
+        # run job to update spotify access token on interval
         sched = BackgroundScheduler(daemon=True)
         sched.add_job(self.update_token, CronTrigger(hour='*'))
         sched.start()
 
     @staticmethod
-    def get_access_token(session, client_id, client_secret):
+    def get_access_token(client_id, client_secret):
         
-        r = session.post(
+        r = requests.post(
             url='https://accounts.spotify.com/api/token',
             data={"grant_type": "client_credentials"},
             auth=(client_id, client_secret),
@@ -36,7 +36,6 @@ class Spotify:
     def update_token(self):
         try:
             self.token = self.get_access_token(
-                self.s,
                 client_id=self.client_id,
                 client_secret=self.client_secret
             )
@@ -46,19 +45,18 @@ class Spotify:
     def get_playlist_tracks(self, playlist_id):
         """Get 10 songs in random order from spotify playlist"""
 
-        r = self.s.get(
+        r = requests.get(
             url=f'https://api.spotify.com/v1/playlists/{playlist_id}',
             headers = {'Authorization': f"Bearer {self.token}"}
         )
+        r.raise_for_status()
         data = r.json()
-        # handle errors
         tracks = data['tracks']['items']
         random.shuffle(tracks)  # shuffle playlist
         queries = []
         for j, track in enumerate(tracks):
             if j == 10:
                 break
-
             search_query = track['track']['name']
             for artist in track['track']['artists']:
                 search_query += ' ' + artist['name']
@@ -69,33 +67,3 @@ class Spotify:
             'tracks': queries
         }
     
-    def search(self, query: str, qtype='track'):
-
-        r = self.s.get(
-            url=f'https://api.spotify.com/v1/search?q={query}&type={qtype}',
-            headers = {'Authorization': f"Bearer {self.token}"}
-        )
-        data = r.json()
-        # handle errors
-        if not ('tracks' in data and 'items' in data['tracks']):
-            return None 
-        
-        track = data['tracks']['items'][0]
-        # if track['type'] != 'track': # make sure search result is a track
-        #     return None
-        return track
-
-    
-    def get_related(self, spotify_id: str):
-
-        if not spotify_id:
-            return None
-        
-        r = self.s.get(
-            url=f'https://api.spotify.com/v1/recommendations?seed_tracks={spotify_id}',
-            headers = {'Authorization': f"Bearer {self.token}"}
-        )
-
-        data = r.json()
-        track = data['tracks'][0]
-        return track
