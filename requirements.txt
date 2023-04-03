@@ -6,3 +6,4 @@ python-dotenv==0.21.1
 requests==2.27.1
 coloredlogs==15.0.1
 tinydb==4.7.1
+APScheduler==3.10.1
