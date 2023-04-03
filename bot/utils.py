@@ -5,12 +5,12 @@ def get_spotify_playlist_id(url: str):
     parsed_url = urllib.parse.urlparse(url)
 
     if parsed_url.scheme != "https" or parsed_url.hostname != "open.spotify.com":
-        return None
+        return (False, None)
     if not parsed_url.path.startswith("/playlist/"):
-        return None
+        return (False, None)
 
     path_parts = parsed_url.path.split("/")
-    return path_parts[-1]
+    return (True, path_parts[-1])
 
 def convert_ms(ms) -> str:
 

@@ -6,9 +6,3 @@ COLOR_DICT = {
     'YELLOW': 0xffea00,
     'GREEN': 0x76ffa1,
 }
-
-PLAYER_STORE_INIT = {
-    'autoplay': None,
-    'channel_id': None,
-    'last_played': None,
-}
