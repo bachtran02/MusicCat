@@ -288,7 +288,7 @@ async def replay(ctx : lightbulb.Context) -> None:
 async def queue(ctx : lightbulb.Context) -> None:
     """Current queue"""
 
-    player = self.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     loop_emj = ''
     if player.loop == player.LOOP_SINGLE:
         loop_emj = '🔂'
