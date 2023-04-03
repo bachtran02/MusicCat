@@ -45,8 +45,9 @@ class EventHandler:
             pass
 
         # add to autoqueue
-        related_tracks = await plugin.bot.d.autoqueue.get_related(track.identifier)
-        player.add_autoplay(related_tracks)
+        if player.is_autoplay:
+            related_tracks = await plugin.bot.d.autoqueue.get_related(track.identifier)
+            player.add_autoplay(related_tracks)
 
         # plugin.bot.d.StreamCount.handle_stream(track)
         track_logger.info('%s - %s - %s', track.title, track.author, track.uri)
@@ -62,7 +63,10 @@ class EventHandler:
     async def queue_finish(self, event: lavalink.QueueEndEvent):
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-        await player.autoplay(plugin.bot.get_me().id)
+        if player.is_autoplay:
+            await player.autoplay(plugin.bot.get_me().id)
+        else:
+            await plugin.bot.update_presence(activity=None)
         logging.info('Queue finished on guild: %s', event.player.guild_id)
         
     @lavalink.listener(lavalink.TrackExceptionEvent)
@@ -292,11 +296,12 @@ async def queue(ctx : lightbulb.Context) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     loop_emj = ''
     if player.loop == player.LOOP_SINGLE:
-        loop_emj = '🔂'
+        loop_emj = '🔂 '
     elif player.loop == player.LOOP_QUEUE:
-        loop_emj = '🔁'
+        loop_emj = '🔁 '
 
-    shuffle_emj = '🔀' if player.shuffle else ''
+    shuffle_emj = '🔀 ' if player.shuffle else ''
+    autoplay_str = 'enabled' if player.is_autoplay else 'disabled'
 
     if player.current.stream:
         playtime = 'LIVE'
@@ -312,9 +317,11 @@ async def queue(ctx : lightbulb.Context) -> None:
         queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{duration_str(track.duration)}` <@!{track.requester}>'
 
     await ctx.respond(embed=hikari.Embed(
-        title = f'🎵 Queue {loop_emj} {shuffle_emj}',
+        title = f'🎵 Queue {loop_emj}{shuffle_emj}',
         description = queue_description,
         colour = COLOR_DICT['GREEN']
+    ).set_footer(
+        text=f'🎲 Autoplay: {autoplay_str}'
     ))
 
 
@@ -367,6 +374,31 @@ async def shuffle(ctx:lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(
+    lightbulb.guild_only, valid_user_voice, player_playing,
+)
+@lightbulb.command('autoplay', 'Enable/disable autoplay', auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def autoplay(ctx:lightbulb.Context) -> None:
+    """Enable/disable autoplay"""
+
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    
+    if player.is_autoplay:
+        player.is_autoplay = False
+        player.autoqueue.clear()
+    else:
+        player.is_autoplay = True
+        related_tracks = await plugin.bot.d.autoqueue.get_related(player.current.identifier)
+        player.add_autoplay(related_tracks)
+
+    await ctx.respond(embed=hikari.Embed(
+            description = f'🎲 {("Autoplay enabled" if player.is_autoplay else "Autoplay disabled")}',
+            colour = COLOR_DICT['BLUE']
+        ))
+
+
+@plugin.command()
+@lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice,
 )
 @lightbulb.option('latest', 'Play newest video in playlist', choices=['True'], default=None, required=False)
@@ -379,7 +411,7 @@ async def chill(ctx: lightbulb.Context) -> None:
         await _join(plugin.bot, ctx.guild_id, ctx.author.id)
         player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
 
-    query = f'{BASE_YT_URL}/playlist?list=PL-F2EKRbzrNS0mQqAW6tt75FTgf4j5gjS'
+    query = f'{BASE_YT_URL}/playlist?list=PL-F2EKRbzrNQte4aGjHp9cQau9peyPMw0'
     results = await player.node.get_tracks(query)
 
     if not results.load_type == 'PLAYLIST_LOADED':

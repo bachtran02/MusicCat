@@ -40,13 +40,13 @@ async def _search(lavalink, spotify, query=None) -> Optional[Union[AudioTrack, D
         for track in playlist['tracks']:
             trackq = f'ytsearch: {track} audio'
             results = await lavalink.get_tracks(trackq)
-            track.append(results.tracks[0])
+            tracks.append(results.tracks[0])
         return {
             'playlist': {
                 'name': playlist['name'],
                 'url': query,
+            },
             'tracks': tracks
-            }
         }
 
     else:
@@ -95,6 +95,12 @@ async def _play(bot, guild_id: int, author_id: int, query: str,
         await _join(bot, guild_id, author_id)
         player = bot.d.lavalink.player_manager.get(guild_id)
 
+    player.textchannel_id = textchannel
+    if autoplay == 'True':
+        player.is_autoplay = True
+    elif autoplay == ' False':
+        player.is_autoplay = False
+
     if isinstance(result, dict):  # playlist
         for track in result['tracks']:
             player.add(requester=author_id, track=track)
@@ -111,12 +117,5 @@ async def _play(bot, guild_id: int, author_id: int, query: str,
     if not player.is_playing:
         await player.play()
 
-    if autoplay == 'True':
-        player.is_autoplay = True
-    elif autoplay == ' False':
-        player.is_autoplay = False
-
-    player.textchannel_id = textchannel
-    
     return embed
     

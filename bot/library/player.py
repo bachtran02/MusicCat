@@ -20,8 +20,9 @@ class CustomPlayer(DefaultPlayer):
         self.current = None
         self.shuffle = False
         self.loop = 0
+        self.is_autoplay = False
 
-        # clear all queues
+        # clear all queues  
         self.queue.clear()
         self.autoqueue.clear()
 
@@ -73,7 +74,7 @@ class CustomPlayer(DefaultPlayer):
                 await self.node._dispatch_event(QueueEndEvent(self))
                 return
 
-            pop_at = randrange(len(self.queue)) if self.shuffle else 0
+            pop_at = random.randrange(len(self.queue)) if self.shuffle else 0
             track = self.queue.pop(pop_at)
 
         if start_time is not None:
