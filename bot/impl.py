@@ -1,14 +1,13 @@
 import re
 import logging
 import hikari
-
 from lavalink.models import AudioTrack
 from typing import Optional, Union, List, Dict
 
 from bot.utils import get_spotify_playlist_id
 from bot.constants import COLOR_DICT
 
-async def _join(bot, guild_id, author_id):
+async def _join(bot, guild_id: int, author_id: int):
     
     assert guild_id is not None
 

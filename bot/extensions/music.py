@@ -14,6 +14,7 @@ from bot.impl import _join, _play
 from bot.spotify import Spotify
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT, BASE_YT_URL
+from bot.utils import duration_str
 
 plugin = lightbulb.Plugin('Music', 'Music commands')
 
