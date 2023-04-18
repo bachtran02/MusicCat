@@ -1,10 +1,12 @@
 import os
+import re
 import random
 import logging
 import hikari
 import lavalink
 import lightbulb
 from requests import HTTPError
+from googleapiclient.discovery import build
 
 # from bot.library.StreamCount import StreamCount
 from bot.library.autoqueue import Autoqueue
@@ -14,7 +16,8 @@ from bot.impl import _join, _play
 from bot.spotify import Spotify
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT, BASE_YT_URL
-from bot.utils import duration_str
+from bot.utils import duration_str, player_bar
+from bot.components import generate_rows, handle_responses
 
 plugin = lightbulb.Plugin('Music', 'Music commands')
 
@@ -25,20 +28,24 @@ class EventHandler:
     async def track_start(self, event: lavalink.TrackStartEvent):
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-        track = player.current
 
+        track = player.current
         await plugin.bot.update_presence(
             activity = hikari.Activity(
                 name=track.title,
                 type=hikari.ActivityType.STREAMING,
                 url=track.uri,
             ))
+        
+        # TODO: still create message on first play
+        if player.loop == player.LOOP_SINGLE:  
+            return
 
         try:
             await plugin.bot.rest.create_message(
                 channel=player.textchannel_id,
                 embed=hikari.Embed(
-                    description = f'▶️ Now playing: [{track.title}]({track.uri}) - <@{track.requester}>',
+                    description = f'▶️ **Now playing:** [{track.title}]({track.uri}) - <@{track.requester}>',
                     colour = COLOR_DICT['GREEN']
                 ))
         except Exception as error:
@@ -56,7 +63,7 @@ class EventHandler:
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):
         
-        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+        # player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         logging.info('Track finished on guild: %s', event.player.guild_id)
 
     @lavalink.listener(lavalink.QueueEndEvent)
@@ -91,11 +98,13 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     plugin.bot.d.lavalink = client
     plugin.bot.d.autoqueue = Autoqueue(client)
     # plugin.bot.d.StreamCount = StreamCount()
+    plugin.bot.d.yt = client = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
     
     try:
         plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
-    except (KeyError | errors.HTTPError) as error:
+    except (KeyError | HTTPError) as error:
         logging.warning('Failed to build Spotify client - "%s"', error)
+    
 
 
 @plugin.command()
@@ -249,6 +258,7 @@ async def seek(ctx : lightbulb.Context) -> None:
         await ctx.respond('⚠️ Current track is not seekable!')
         return
 
+    pos = ctx.options.position
     pos_rx = re.compile(r'\d+:\d{2}$')
     if not pos_rx.match(pos) or int(pos.split(':')[1]) >= 60:
         await ctx.respond('⚠️ Invalid position!')
@@ -294,22 +304,11 @@ async def queue(ctx : lightbulb.Context) -> None:
     """Current queue"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    loop_emj = ''
-    if player.loop == player.LOOP_SINGLE:
-        loop_emj = '🔂 '
-    elif player.loop == player.LOOP_QUEUE:
-        loop_emj = '🔁 '
-
-    shuffle_emj = '🔀 ' if player.shuffle else ''
+    
     autoplay_str = 'enabled' if player.is_autoplay else 'disabled'
+    queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) - <@!{player.current.requester}>' +'\n'
+    queue_description += player_bar(player) 
 
-    if player.current.stream:
-        playtime = 'LIVE'
-    else:
-        playtime = f'{duration_str(player.position)} | {duration_str(player.current.duration)}'
-
-    queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) '
-    queue_description += f'`{playtime}` <@!{player.current.requester}>'
     for i in range(min(len(player.queue), 10)):
         if i == 0:
             queue_description += '\n\n' + '**Up next:**'
@@ -317,7 +316,7 @@ async def queue(ctx : lightbulb.Context) -> None:
         queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{duration_str(track.duration)}` <@!{track.requester}>'
 
     await ctx.respond(embed=hikari.Embed(
-        title = f'🎵 Queue {loop_emj}{shuffle_emj}',
+        title = f'🎵 Queue',
         description = queue_description,
         colour = COLOR_DICT['GREEN']
     ).set_footer(
@@ -408,16 +407,37 @@ async def chill(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     if not player or not player.is_connected:
-        await _join(plugin.bot, ctx.guild_id, ctx.author.id)
-        player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+        player = await _join(plugin.bot, ctx.guild_id, ctx.author.id)
 
-    query = f'{BASE_YT_URL}/playlist?list=PL-F2EKRbzrNQte4aGjHp9cQau9peyPMw0'
-    results = await player.node.get_tracks(query)
+    if ctx.options.latest:
+        search = plugin.bot.d.yt.search().list(
+            part='snippet',
+            type='video',
+            channelId='UCOGDtlp0av6Cp366BGS_PLQ',
+            order='date',
+            maxResults=10,
+        ).execute()
 
-    if not results.load_type == 'PLAYLIST_LOADED':
-        await ctx.respond('⚠️ Failed to load track!')
+        if not (isinstance(search, dict) or search.get('items', None)):
+            await ctx.respond('⚠️ Failed to search for latest tracks')
+            return
+        
+        yid = search['items'][random.randrange(len(search['items']))]['id']['videoId']
+        results = await player.node.get_tracks(f'{BASE_YT_URL}/watch?v={yid}')
 
-    track = results.tracks[random.randrange(len(results.tracks))]
+        if not results.load_type == 'TRACK_LOADED':
+            await ctx.respond('⚠️ Failed to load track')
+            return
+        track = results.tracks[0]
+    else:
+        query = f'{BASE_YT_URL}/playlist?list=PL-F2EKRbzrNQte4aGjHp9cQau9peyPMw0'
+        results = await player.node.get_tracks(query)
+
+        if not results.load_type == 'PLAYLIST_LOADED':
+            await ctx.respond('⚠️ Failed to load track!')
+            return
+        track = results.tracks[random.randrange(len(results.tracks))]
+    
     player.add(track=track, requester=ctx.author.id)
     if not player.is_playing:
         await player.play()
@@ -447,6 +467,39 @@ async def chill(ctx: lightbulb.Context) -> None:
 #         embed.description = 'No data found!'
 
 #     await ctx.respond(embed=embed)
+
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only,
+)
+@lightbulb.command('player', 'interactive guild music player', auto_defer=True)
+@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+async def player(ctx: lightbulb.Context) -> None:
+    """Interactive guild music player"""
+
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    if not player or not player.is_playing:
+        await ctx.respond('⚠️ Player is not playing!')
+        return
+
+    body = f'**Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
+    body += player_bar(player)
+    body += f'Requested by: <@!{player.current.requester}>'
+
+    # Generate the action rows.
+    rows = await generate_rows(ctx.bot)
+
+    embed = hikari.Embed(
+        description=body,
+        color=COLOR_DICT['GREEN']
+    )
+
+    response = await ctx.respond(embed=embed, components=rows)
+    message = await response.message()
+
+    # Handle interaction responses to the initial message.
+    await handle_responses(ctx.bot, ctx.author, message)
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
