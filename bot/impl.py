@@ -2,6 +2,7 @@ import re
 import logging
 import hikari
 from lavalink.models import AudioTrack
+import lavalink
 from typing import Optional, Union, List, Dict
 
 from bot.utils import get_spotify_playlist_id
@@ -22,10 +23,10 @@ async def _join(bot, guild_id: int, author_id: int):
         raise TimeoutError('Unable to connect to the voice channel!') from error
     
     logging.info('Client connected to voice channel on guild: %s', guild_id)
-    return channel_id
+    return player
 
 
-async def _search(lavalink, spotify, query=None) -> Optional[Union[AudioTrack, Dict]]:
+async def _search(lavalink, spotify, query=None) -> Optional[Union[lavalink.AudioTrack, Dict]]:
     
     query = query.strip('<>')  # <url> to suppress embed on Discord
 
@@ -55,9 +56,8 @@ async def _search(lavalink, spotify, query=None) -> Optional[Union[AudioTrack, D
             query = f'ytsearch:{query}'
 
         results = await lavalink.get_tracks(query)
-
         if not results or not results.tracks:
-            raise error
+            raise 
         
         if results.load_type == 'PLAYLIST_LOADED':  # YouTube playlist
             tracks = results.tracks
@@ -92,8 +92,7 @@ async def _play(bot, guild_id: int, author_id: int, query: str,
     
     player = bot.d.lavalink.player_manager.get(guild_id)
     if not player or not player.is_connected:
-        await _join(bot, guild_id, author_id)
-        player = bot.d.lavalink.player_manager.get(guild_id)
+        player = await _join(bot, guild_id, author_id)
 
     player.textchannel_id = textchannel
     if autoplay == 'True':
