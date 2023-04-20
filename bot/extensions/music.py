@@ -89,8 +89,7 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     client.add_event_hooks(EventHandler())
 
     client.add_node(
-        # host='lavalink',
-        host='localhost',
+        host='lavalink',
         port=int(os.environ['LAVALINK_PORT']), password=os.environ['LAVALINK_PASS'],
         region='us', name='default-node', reconnect_attempts=-1
     )
@@ -485,7 +484,7 @@ async def player(ctx: lightbulb.Context) -> None:
 
     body = f'**Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
     body += player_bar(player)
-    body += f'Requested by: <@!{player.current.requester}>'
+    body += f'Requested - <@!{player.current.requester}>'
 
     # Generate the action rows.
     rows = await generate_rows(ctx.bot)

@@ -56,7 +56,7 @@ async def handle_responses(
 ) -> None:
     """Watches for events, and handles responding to them."""
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=120).filter(
+    with bot.stream(hikari.InteractionCreateEvent, timeout=300).filter(
         lambda e: (
             isinstance(e.interaction, hikari.ComponentInteraction)  # a component interaction is a button interaction.
             and e.interaction.user == author  # Make sure the command author hit the button.
@@ -79,13 +79,13 @@ async def handle_responses(
 
             if not player.is_playing:
                 embed = hikari.Embed(
-                    description='No track to play!',
+                    description='**No track to play!**',
                     color=COLOR_DICT['YELLOW'],
                 )
             else:
                 body = f'**Streaming:** [{player.current.title}]({player.current.uri})' + '\n'
                 body += player_bar(player)
-                body += f'Requested by: <@!{player.current.requester}>'
+                body += f'Requested - <@!{player.current.requester}>'
                 embed = hikari.Embed(
                     description=body,
                     color=COLOR_DICT['GREEN'],
