@@ -30,7 +30,6 @@ class CustomPlayer(DefaultPlayer):
 
         for track in related_tracks:
             self.autoqueue.append(track)
-        # print(self.autoqueue)
 
     async def autoplay(self, botid=None) -> Optional[AudioTrack]:
 
@@ -46,7 +45,7 @@ class CustomPlayer(DefaultPlayer):
 
     async def play(self, track: Optional[Union[AudioTrack, DeferredAudioTrack, Dict]] = None, start_time: Optional[int] = 0,
                    end_time: Optional[int] = None, no_replace: Optional[bool] = False, volume: Optional[int] = None,
-                   pause: Optional[bool] = False):
+                   pause: Optional[bool] = False,):
 
         if no_replace and self.is_playing:
             return

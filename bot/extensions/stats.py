@@ -13,7 +13,7 @@ plugin = lightbulb.Plugin('Stats', 'Stats commands')
 @plugin.command()
 @lightbulb.add_checks(lightbulb.owner_only)
 @lightbulb.command('stats', 'Display bot stats.', auto_defer = True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def stats(ctx: lightbulb.Context) -> None:
     """Display bot stats."""
 
@@ -56,3 +56,6 @@ async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
 
 def load(bot: lightbulb.BotApp) -> None:
     bot.add_plugin(plugin)
+
+def unload(bot: lightbulb.BotApp) -> None:
+    bot.remove_plugin(plugin)
