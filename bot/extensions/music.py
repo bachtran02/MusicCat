@@ -2,9 +2,12 @@ import os
 import re
 import random
 import logging
-import hikari
+
 import lavalink
+import hikari
 import lightbulb
+import miru
+
 from requests import HTTPError
 from googleapiclient.discovery import build
 
@@ -15,11 +18,11 @@ from bot.logger.custom_logger import track_logger
 from bot.impl import _join, _play
 from bot.spotify import Spotify
 from bot.checks import valid_user_voice, player_playing, player_connected
-from bot.constants import COLOR_DICT, BASE_YT_URL
+from bot.constants import COLOR_DICT
 from bot.utils import duration_str, player_bar
-from bot.components import generate_rows, handle_responses
+from bot.components import PlayerView, CustomTextSelect, RemoveButton
 
-plugin = lightbulb.Plugin('Music', 'Music commands')
+plugin = lightbulb.Plugin('Music', 'Basic music commands')
 
 class EventHandler:
     """Events from the Lavalink server"""
@@ -81,7 +84,7 @@ class EventHandler:
         logging.warning('Track exception event happened on guild: %s', event.player.guild_id)
 
 
-# on ready, connect to lavalink server
+# on ready, create a node to connect to lavalink server
 @plugin.listener(hikari.ShardReadyEvent)
 async def start_bot(event: hikari.ShardReadyEvent) -> None:
 
@@ -89,20 +92,22 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     client.add_event_hooks(EventHandler())
 
     client.add_node(
-        host='lavalink',
+        # host='lavalink',
+        host='localhost',
         port=int(os.environ['LAVALINK_PORT']), password=os.environ['LAVALINK_PASS'],
         region='us', name='default-node', reconnect_attempts=-1
     )
 
     plugin.bot.d.lavalink = client
     plugin.bot.d.autoqueue = Autoqueue(client)
-    # plugin.bot.d.StreamCount = StreamCount()
+
     plugin.bot.d.yt = client = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
+    plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
     
-    try:
-        plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
-    except (KeyError | HTTPError) as error:
-        logging.warning('Failed to build Spotify client - "%s"', error)
+    # try:
+    #     plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
+    # except (KeyError | HTTPError) as error:
+    #     logging.warning('Failed to build Spotify client - "%s"', error)
     
 
 
@@ -115,7 +120,7 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
 @lightbulb.option('loop', 'Loops track', choices=['True'], required=False, default=False)
 @lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
 @lightbulb.command('play', 'Searches the query on youtube, or adds the URL to the queue.', auto_defer = True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
     """Searches the query on youtube, or adds the URL to the queue."""
 
@@ -137,7 +142,7 @@ async def play(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_connected,
 )
 @lightbulb.command('leave', 'Leaves the voice channel the bot is in, clearing the queue.', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def leave(ctx: lightbulb.Context) -> None:
     """Leaves the voice channel the bot is in, clearing the queue."""
 
@@ -169,7 +174,7 @@ async def join(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.command('stop', 'Stops the current song and clears queue.', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def stop(ctx: lightbulb.Context) -> None:
     """Stops the current song (skip to continue)."""
 
@@ -189,7 +194,7 @@ async def stop(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.command('skip', 'Skips the current song.', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def skip(ctx: lightbulb.Context) -> None:
     """Skips the current song."""
 
@@ -208,7 +213,7 @@ async def skip(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.command('pause', 'Pauses the current song.', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def pause(ctx: lightbulb.Context) -> None:
     """Pauses the current song."""
 
@@ -227,7 +232,7 @@ async def pause(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_connected,
 )
 @lightbulb.command('resume', 'Resumes playing the current song.', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def resume(ctx: lightbulb.Context) -> None:
     """Resumes playing the current song."""
 
@@ -248,7 +253,7 @@ async def resume(ctx: lightbulb.Context) -> None:
 )
 @lightbulb.option('position', 'Position to seek (format: "[min]:[sec]" )', required=True)
 @lightbulb.command('seek', "Seeks to a given position in the track", auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def seek(ctx : lightbulb.Context) -> None:
     """Seeks to a position of a track"""
 
@@ -259,11 +264,12 @@ async def seek(ctx : lightbulb.Context) -> None:
 
     pos = ctx.options.position
     pos_rx = re.compile(r'\d+:\d{2}$')
-    if not pos_rx.match(pos) or int(pos.split(':')[1]) >= 60:
+
+    if not (pos_rx.match(pos) and int(pos.split(':')[1]) < 60):
         await ctx.respond('⚠️ Invalid position!')
         return
     
-    minute, second = [int(x) for x in pos.split(':')]
+    [minute, second] = [int(x) for x in pos.split(':')]
     ms = minute * 60 * 1000 + second * 1000
     await player.seek(ms)
 
@@ -278,7 +284,7 @@ async def seek(ctx : lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.command('replay', 'Replay track', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def replay(ctx : lightbulb.Context) -> None:
     """Replay track from the start"""
 
@@ -298,7 +304,7 @@ async def replay(ctx : lightbulb.Context) -> None:
     lightbulb.guild_only, player_playing,
 )
 @lightbulb.command('queue', 'Shows the next 10 songs in the queue', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def queue(ctx : lightbulb.Context) -> None:
     """Current queue"""
 
@@ -310,7 +316,7 @@ async def queue(ctx : lightbulb.Context) -> None:
 
     for i in range(min(len(player.queue), 10)):
         if i == 0:
-            queue_description += '\n\n' + '**Up next:**'
+            queue_description += '\n' + '**Up next:**'
         track = player.queue[i]
         queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{duration_str(track.duration)}` <@!{track.requester}>'
 
@@ -329,7 +335,7 @@ async def queue(ctx : lightbulb.Context) -> None:
 )
 @lightbulb.option('mode', 'Loop mode', choices=['track', 'queue', 'end'], required=False, default='track')
 @lightbulb.command('loop', 'Loops current track or queue or ends loops', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def loop(ctx:lightbulb.Context) -> None:
     """Loop player by track or queue"""
 
@@ -357,7 +363,7 @@ async def loop(ctx:lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.command('shuffle', 'Enable/disable shuffle', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def shuffle(ctx:lightbulb.Context) -> None:
     """Shuffle queue"""
 
@@ -375,7 +381,7 @@ async def shuffle(ctx:lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.command('autoplay', 'Enable/disable autoplay', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def autoplay(ctx:lightbulb.Context) -> None:
     """Enable/disable autoplay"""
 
@@ -393,79 +399,89 @@ async def autoplay(ctx:lightbulb.Context) -> None:
             description = f'🎲 {("Autoplay enabled" if player.is_autoplay else "Autoplay disabled")}',
             colour = COLOR_DICT['BLUE']
         ))
-
+    
 
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice,
 )
-@lightbulb.option('latest', 'Play newest video in playlist', choices=['True'], default=None, required=False)
-@lightbulb.command('chill', 'Play random linhnhichill', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
-async def chill(ctx: lightbulb.Context) -> None:
+@lightbulb.option('query', 'The query to search for.', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
+@lightbulb.command('search', 'Search & add specific YouTube track to queue', auto_defer = True)
+@lightbulb.implements(lightbulb.SlashCommand)
+async def search(ctx: lightbulb.Context) -> None:
+
+    query = ctx.options.query
+    search_query = f'ytsearch:{query}'
+
+    results = await plugin.bot.d.lavalink.get_tracks(search_query)
+    if not results or not results.tracks:
+        await ctx.respond('⚠️ No search result for query')
+        return
+
+    view = miru.View(timeout=60)
+    options = [f'{i + 1}. {track.title[:55]}' for i, track in enumerate(results.tracks[:20])]
+    options = [miru.SelectOption(label=option) for option in options]
+    
+    view.add_item(CustomTextSelect(options=options, placeholder='Select track to play'))
+    view.add_item(RemoveButton(style=hikari.ButtonStyle.SECONDARY, emoji='❌'))
+
+    message = await ctx.respond(
+        components=view,
+        embed=hikari.Embed(
+            color=COLOR_DICT['GREEN'],
+            description=f'🔍 **Search results for:** `{query}`',
+        ))
+    
+    await view.start(message)
+    await view.wait()  # Wait until the view is stopped or times out
+
+    if not hasattr(view, 'choice'):  # remove btn is pressed or message timeout
+        await message.delete()
+        return
+        
+    track = results.tracks[int(view.choice.split('.')[0]) - 1]
+    embed = await _play(
+        bot=plugin.bot, guild_id=ctx.guild_id, author_id=ctx.author.id,
+        query=track, textchannel=ctx.channel_id,
+    )
+    await message.edit(embed=embed, components=None)
+
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, valid_user_voice, player_playing
+)
+@lightbulb.command('remove', 'Remove a track from queue', auto_defer = True)
+@lightbulb.implements(lightbulb.SlashCommand)
+async def remove(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    if not player or not player.is_connected:
-        player = await _join(plugin.bot, ctx.guild_id, ctx.author.id)
+    if not player.queue:
+        await ctx.respond('⚠️ Queue is emtpy!')
+        return
+    
+    view = miru.View()
+    options = [f'{i + 1}. {track.title[:55]}' for i, track in enumerate(player.queue[:20])]
+    options = [miru.SelectOption(label=option) for option in options]
+    
+    view.add_item(CustomTextSelect(options=options, placeholder='Select track to remove'))
+    view.add_item(RemoveButton(style=hikari.ButtonStyle.SECONDARY, emoji='❌'))
 
-    if ctx.options.latest:
-        search = plugin.bot.d.yt.search().list(
-            part='snippet',
-            type='video',
-            channelId='UCOGDtlp0av6Cp366BGS_PLQ',
-            order='date',
-            maxResults=10,
-        ).execute()
-
-        if not (isinstance(search, dict) or search.get('items', None)):
-            await ctx.respond('⚠️ Failed to search for latest tracks')
-            return
+    message = await ctx.respond(components=view)
+    await view.start(message)
+    await view.wait()
+    
+    if not hasattr(view, 'choice'):  
+        await message.delete()
+        return
         
-        yid = search['items'][random.randrange(len(search['items']))]['id']['videoId']
-        results = await player.node.get_tracks(f'{BASE_YT_URL}/watch?v={yid}')
-
-        if not results.load_type == 'TRACK_LOADED':
-            await ctx.respond('⚠️ Failed to load track')
-            return
-        track = results.tracks[0]
-    else:
-        query = f'{BASE_YT_URL}/playlist?list=PL-F2EKRbzrNQte4aGjHp9cQau9peyPMw0'
-        results = await player.node.get_tracks(query)
-
-        if not results.load_type == 'PLAYLIST_LOADED':
-            await ctx.respond('⚠️ Failed to load track!')
-            return
-        track = results.tracks[random.randrange(len(results.tracks))]
-    
-    player.add(track=track, requester=ctx.author.id)
-    if not player.is_playing:
-        await player.play()
-    
-    await ctx.respond(embed=hikari.Embed(
-        description=f'[{track.title}]({track.uri}) added to queue <@{ctx.author.id}>',
-        color=COLOR_DICT['GREEN']
+    popped_track = player.queue.pop(int(view.choice.split('.')[0]) - 1)
+    await message.edit(
+        components=None,
+        embed=hikari.Embed(
+            description = f'Removed: [{popped_track.title}]({popped_track.uri})',
+            colour = COLOR_DICT['RED']
     ))
-
-
-# @plugin.command()
-# @lightbulb.add_checks(lightbulb.guild_only)
-# @lightbulb.command('top', 'Get tracks with most streams', auto_defer=True)
-# @lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
-# async def toptracks(ctx : lightbulb.Context) -> None:
-
-#     embed = hikari.Embed(
-#         title='Most Streamed Tracks',
-#         description='',
-#         color=COLOR_DICT['GREEN']
-#     )
-
-#     top_tracks = plugin.bot.d.StreamCount.get_top_tracks(10)
-#     for i, track in enumerate(top_tracks):
-#         embed.description += f'[{i + 1}. {track["title"]}]({track["url"]}) ({track["count"]})' + '\n'
-#     if not embed.description:
-#         embed.description = 'No data found!'
-
-#     await ctx.respond(embed=embed)
 
 
 @plugin.command()
@@ -473,7 +489,7 @@ async def chill(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only,
 )
 @lightbulb.command('player', 'interactive guild music player', auto_defer=True)
-@lightbulb.implements(lightbulb.PrefixCommand, lightbulb.SlashCommand)
+@lightbulb.implements(lightbulb.SlashCommand)
 async def player(ctx: lightbulb.Context) -> None:
     """Interactive guild music player"""
 
@@ -482,23 +498,21 @@ async def player(ctx: lightbulb.Context) -> None:
         await ctx.respond('⚠️ Player is not playing!')
         return
 
-    body = f'**Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
-    body += player_bar(player)
-    body += f'Requested - <@!{player.current.requester}>'
+    desc = f'**Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
+    desc += player_bar(player)
+    desc += f'Requested - <@!{player.current.requester}>'
 
-    # Generate the action rows.
-    rows = await generate_rows(ctx.bot)
+    view = PlayerView()
 
-    embed = hikari.Embed(
-        description=body,
-        color=COLOR_DICT['GREEN']
-    )
+    message = await ctx.respond(
+        components=view,
+        embed=hikari.Embed(
+            description=desc,
+            color=COLOR_DICT['GREEN']
+        ))
 
-    response = await ctx.respond(embed=embed, components=rows)
-    message = await response.message()
-
-    # Handle interaction responses to the initial message.
-    await handle_responses(ctx.bot, ctx.author, message)
+    await view.start(message)  # Start listening for interactions
+    await view.wait()
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
@@ -541,7 +555,7 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
             await player.leave()
             await plugin.bot.update_presence(activity=None) # clear presence
             await plugin.bot.update_voice_state(cur_state.guild_id, None) # disconnect from voice channel
-            logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)    
+            logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id) 
         return
     
     # event occurs in channel not same as bot
@@ -593,3 +607,6 @@ async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
 
 def load(bot: lightbulb.BotApp) -> None:
     bot.add_plugin(plugin)
+
+def unload(bot: lightbulb.BotApp) -> None:
+    bot.remove_plugin(plugin)
