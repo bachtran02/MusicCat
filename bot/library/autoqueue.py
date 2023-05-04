@@ -17,7 +17,10 @@ class Autoqueue:
     @staticmethod
     def build_yt_client():
         try:
-            client = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
+            client = build(
+                'youtube', 'v3', static_discovery=False,
+                developerKey=os.environ['YOUTUBE_API_KEY']
+            )
         except Exception as error:
             raise error
         return client
@@ -35,13 +38,14 @@ class Autoqueue:
         search = self.yt.search().list(
             part='snippet',
             type='video',
+            videoCategoryId='10',  # for music
             relatedToVideoId=ytid,
             maxResults=10
         ).execute()
 
         if not search['items']:
             return
-
+        
         items = search['items']
         shuffle(items)
 

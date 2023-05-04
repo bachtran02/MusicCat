@@ -14,38 +14,49 @@ async def _join(bot, guild_id: int, author_id: int) -> lavalink.DefaultPlayer:
 
     states = bot.cache.get_voice_states_view_for_guild(guild_id)
     voice_state = [state[1] for state in filter(lambda i : i[0] == author_id, states.items())]
-    channel_id = voice_state[0].channel_id
+    channel_id = voice_state[0].channel_id  # voice channel user is in
 
     try:
-        await bot.update_voice_state(guild_id, channel_id, self_deaf=True)
         player = bot.d.lavalink.player_manager.create(guild_id=guild_id)
+        await bot.update_voice_state(guild_id, channel_id, self_deaf=True)
+        player.channel_id = channel_id
     except TimeoutError as error:
         raise TimeoutError('Unable to connect to the voice channel!') from error
     
     logging.info('Client connected to voice channel on guild: %s', guild_id)
     return player
 
+async def _leave(bot, guild_id: int) -> t.Optional[int]:
 
-async def _search(lavalink: lavalink.Client, spotify=None, query: str = None) -> t.Optional[t.Union[lavalink.AudioTrack, t.Dict]]:
+    player = bot.d.lavalink.player_manager.get(guild_id)
+    
+    channel_id = player.channel_id
+    player.clear_player()
+    # player.channel_id = None
+
+    await bot.update_presence(activity=None) # clear presence
+    await bot.update_voice_state(guild_id, None) # disconnect from voice channel
+
+    logging.info('Client disconnected from voice on guild: %s', guild_id)
+    return channel_id
+
+async def _search(lavalink: lavalink.Client, query: str = None) -> t.Optional[t.Union[lavalink.AudioTrack, t.Dict]]:
     
     playlist_id = get_spotify_playlist_id(query)
     if playlist_id:  # query is Spotify playlist url
-        if not spotify:  #  Spotify object is not constructed
-            return None
 
-        tracks = []
-        playlist = spotify.get_playlist_tracks(playlist_id)
-        for track in playlist['tracks']:
-            trackq = f'ytsearch: {track}'
-            results = await lavalink.get_tracks(trackq)
-            tracks.append(results.tracks[0])
+        results = await lavalink.get_tracks(query, check_local=True)
+
+        print(results)
+
         return {
             'playlist': {
-                'name': playlist['name'],
+                'name': results.playlist_info.name,
                 'url': query,
             },
-            'tracks': tracks
+            'tracks': results.tracks
         }
+    
     else:
         url_rx = re.compile(r'https?://(?:www\.)?.+')
         if not url_rx.match(query):
@@ -53,7 +64,7 @@ async def _search(lavalink: lavalink.Client, spotify=None, query: str = None) ->
 
         results = await lavalink.get_tracks(query)
         if not results or not results.tracks:
-            return None 
+            return None
         
         if results.load_type == 'PLAYLIST_LOADED':  # YouTube playlist
             tracks = results.tracks
@@ -81,7 +92,6 @@ async def _play(bot, guild_id: int, author_id: int, query: t.Union[str, lavalink
         query = query.strip('<>')  # <url> to suppress embed on Discord
         result = await _search(
             lavalink=bot.d.lavalink,
-            spotify=bot.d.spotify,
             query=query,
         )
         if not result:

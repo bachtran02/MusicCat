@@ -15,12 +15,12 @@ from googleapiclient.discovery import build
 from bot.library.autoqueue import Autoqueue
 from bot.library.player import CustomPlayer
 from bot.logger.custom_logger import track_logger
-from bot.impl import _join, _play
-from bot.spotify import Spotify
+from bot.impl import _join, _leave, _play
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT
-from bot.utils import duration_str, player_bar
+from bot.utils import format_time, player_bar
 from bot.components import PlayerView, CustomTextSelect, RemoveButton
+from bot.spotify import SpofitySource
 
 plugin = lightbulb.Plugin('Music', 'Basic music commands')
 
@@ -97,19 +97,18 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
         port=int(os.environ['LAVALINK_PORT']), password=os.environ['LAVALINK_PASS'],
         region='us', name='default-node', reconnect_attempts=-1
     )
+    client.register_source(
+        SpofitySource(
+            client_id=os.environ['SPOTIFY_CLIENT_ID'],
+            client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
+        )
+    )
 
     plugin.bot.d.lavalink = client
     plugin.bot.d.autoqueue = Autoqueue(client)
 
     plugin.bot.d.yt = client = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
-    plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
     
-    # try:
-    #     plugin.bot.d.spotify = Spotify(os.environ['SPOTIFY_CLIENT_ID'], os.environ['SPOTIFY_CLIENT_SECRET'])
-    # except (KeyError | HTTPError) as error:
-    #     logging.warning('Failed to build Spotify client - "%s"', error)
-    
-
 
 @plugin.command()
 @lightbulb.add_checks(
@@ -146,12 +145,8 @@ async def play(ctx: lightbulb.Context) -> None:
 async def leave(ctx: lightbulb.Context) -> None:
     """Leaves the voice channel the bot is in, clearing the queue."""
 
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    await player.leave()
-    await plugin.bot.update_presence(activity=None) # clear presence
-    await plugin.bot.update_voice_state(ctx.guild_id, None) # disconnect from voice channel
-    await ctx.respond('Left voice channel!')
-    logging.info('Client disconnected from voice on guild: %s', ctx.guild_id)
+    channel_id = await _leave(plugin.bot, ctx.guild_id)
+    await ctx.respond(f'Left <#{channel_id}>!')
 
 
 @plugin.command()
@@ -162,11 +157,11 @@ async def join(ctx: lightbulb.Context) -> None:
     """Joins voice channel user is in"""
     
     try:
-        channel_id = await _join(plugin.bot, ctx.guild_id, ctx.author.id)
+        player = await _join(plugin.bot, ctx.guild_id, ctx.author.id)
     except TimeoutError as error:
         await ctx.respond(f'⚠️ {error}')
     else:
-        await ctx.respond(f'Joined <#{channel_id}>')
+        await ctx.respond(f'Joined <#{player.channel_id}>')
 
 
 @plugin.command()
@@ -318,7 +313,7 @@ async def queue(ctx : lightbulb.Context) -> None:
         if i == 0:
             queue_description += '\n' + '**Up next:**'
         track = player.queue[i]
-        queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{duration_str(track.duration)}` <@!{track.requester}>'
+        queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{format_time(track.duration)}` <@!{track.requester}>'
 
     await ctx.respond(embed=hikari.Embed(
         title = f'🎵 Queue',
@@ -534,6 +529,9 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     prev_state = event.old_state
     cur_state = event.state
 
+    player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
+    prev_channel = player.channel_id  # if disconnected involuntarily this != None
+
     # send event update to lavalink server
     lavalink_data = {
         't': 'VOICE_STATE_UPDATE',
@@ -551,11 +549,9 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
 
     if not bot_voice_state or cur_state.user_id == bot_id: # bot is disconnected by user or leave on command
-        if not bot_voice_state and cur_state.user_id == bot_id :
-            await player.leave()
-            await plugin.bot.update_presence(activity=None) # clear presence
-            await plugin.bot.update_voice_state(cur_state.guild_id, None) # disconnect from voice channel
-            logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id) 
+        if not bot_voice_state and cur_state.user_id == bot_id:
+            if prev_channel:  # handle involuntary disconnect
+                await _leave(plugin.bot, cur_state.guild_id)
         return
     
     # event occurs in channel not same as bot
@@ -563,17 +559,13 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
         (cur_state and cur_state.channel_id == bot_voice_state.channel_id)):
             return
 
-    # player = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
     states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
     
     # count users in channel with bot
     cnt_user = len([state[0] for state in filter(lambda i: i[1].channel_id == bot_voice_state.channel_id, states)])
 
     if cnt_user == 1:  # only bot left in voice
-        await player.leave()
-        await plugin.bot.update_presence(activity=None) # clear presence
-        await plugin.bot.update_voice_state(cur_state.guild_id, None) # disconnect from voice channel
-        logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)    
+        await _leave(plugin.bot, cur_state.guild_id)
         return
 
     if cnt_user > 2:  # not just bot & lone user -> resume player

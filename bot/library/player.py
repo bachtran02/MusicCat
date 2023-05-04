@@ -108,13 +108,6 @@ class CustomPlayer(DefaultPlayer):
         curtrack = self.current
         await self.play()
         return curtrack
-
-    async def leave(self):
-
-        channel_id = self.channel_id
-        self.clear_player()
-        self.channel_id = None
-        return channel_id
             
     async def stop(self):
         
