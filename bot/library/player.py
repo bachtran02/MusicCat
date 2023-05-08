@@ -10,8 +10,8 @@ class CustomPlayer(DefaultPlayer):
     def __init__(self, guild_id: int, node: 'Node'):
         super().__init__(guild_id, node)
 
-        self.is_autoplay = False
-        self.textchannel_id = None 
+        self.is_autoplay: bool = False
+        self.textchannel_id: int = None 
         self.autoqueue: List[AudioTrack] = []
 
     def clear_player(self):
@@ -113,4 +113,18 @@ class CustomPlayer(DefaultPlayer):
         
         await self.node._send(op='stop', guildId=self._internal_id)
         self.clear_player()
-        
+    
+    def add(self, track: Union[AudioTrack, DeferredAudioTrack, Dict], requester: int = 0, index: int = -1):
+    
+        at = track
+
+        if isinstance(track, dict):
+            at = AudioTrack(track, requester)
+
+        if requester != 0:
+            at.requester = requester
+
+        if index == -1:
+            self.queue.append(at)
+        else:
+            self.queue.insert(index, at)
