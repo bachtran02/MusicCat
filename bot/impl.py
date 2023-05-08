@@ -1,11 +1,11 @@
 import re
 import logging
-import typing as t
+from random import randrange
 
 import hikari
 import lavalink
+from lavalink import LoadType
 
-from bot.utils import get_spotify_playlist_id
 from bot.constants import COLOR_DICT
 
 async def _join(bot, guild_id: int, author_id: int) -> lavalink.DefaultPlayer:
@@ -16,113 +16,75 @@ async def _join(bot, guild_id: int, author_id: int) -> lavalink.DefaultPlayer:
     voice_state = [state[1] for state in filter(lambda i : i[0] == author_id, states.items())]
     channel_id = voice_state[0].channel_id  # voice channel user is in
 
-    try:
-        player = bot.d.lavalink.player_manager.create(guild_id=guild_id)
-        await bot.update_voice_state(guild_id, channel_id, self_deaf=True)
-        player.channel_id = channel_id
-    except TimeoutError as error:
-        raise TimeoutError('Unable to connect to the voice channel!') from error
+    player = bot.d.lavalink.player_manager.create(guild_id=guild_id)
+    await bot.update_voice_state(guild_id, channel_id, self_deaf=True)  # can raise RuntimeError
+    player.channel_id = channel_id  # TODO: improve this
     
     logging.info('Client connected to voice channel on guild: %s', guild_id)
     return player
 
-async def _leave(bot, guild_id: int) -> t.Optional[int]:
-
-    player = bot.d.lavalink.player_manager.get(guild_id)
+async def _search(lavalink: lavalink.Client, source: str = None, client = None, query: str = None) -> lavalink.LoadResult:
     
-    channel_id = player.channel_id
-    player.clear_player()
-    # player.channel_id = None
+    query = query.strip('<>')  # <url> to suppress embed on Discord
 
-    await bot.update_presence(activity=None) # clear presence
-    await bot.update_voice_state(guild_id, None) # disconnect from voice channel
+    if source:
+        # if custom client is not given then use lavalink client
+        client = lavalink if not client else None  
+        if not (source := lavalink.get_source(source_name=source)):
+            logging.error('Failed to retrieve custom source')
+            raise BaseException('Source not found!')
+        return await source.load_item(query=query, client=client, use_source=True)
 
-    logging.info('Client disconnected from voice on guild: %s', guild_id)
-    return channel_id
-
-async def _search(lavalink: lavalink.Client, query: str = None) -> t.Optional[t.Union[lavalink.AudioTrack, t.Dict]]:
+    url_rx = re.compile(r'https?://(?:www\.)?.+')
+    if not url_rx.match(query):
+        query = f'ytsearch:{query}'  # or ytsearch:
     
-    playlist_id = get_spotify_playlist_id(query)
-    if playlist_id:  # query is Spotify playlist url
+    return await lavalink.get_tracks(query=query, check_local=True)
 
-        results = await lavalink.get_tracks(query, check_local=True)
-
-        print(results)
-
-        return {
-            'playlist': {
-                'name': results.playlist_info.name,
-                'url': query,
-            },
-            'tracks': results.tracks
-        }
+async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
+        textchannel: int = 0, loop: bool = False, shuffle: bool = False, index: int = -1, 
+        autoplay: int = 0) -> hikari.Embed:
     
-    else:
-        url_rx = re.compile(r'https?://(?:www\.)?.+')
-        if not url_rx.match(query):
-            query = f'ytsearch:{query}'
+    assert result is not None
 
-        results = await lavalink.get_tracks(query)
-        if not results or not results.tracks:
-            return None
-        
-        if results.load_type == 'PLAYLIST_LOADED':  # YouTube playlist
-            tracks = results.tracks
-            
-            return {
-                'playlist': {
-                    'name': results.playlist_info.name,
-                    'url': query,
-                },
-                'tracks': results.tracks
-            }
-        else:  # YouTube track url or title
-            return results.tracks[0]
-
-# TODO: index to track to queue
-async def _play(bot, guild_id: int, author_id: int, query: t.Union[str, lavalink.AudioTrack],
-        textchannel: int = 0, loop: bool = False, autoplay: str = 'None') -> hikari.Embed:
-
-    if not query:
-        return
+    if result.load_type in [LoadType.NO_MATCHES, LoadType.LOAD_FAILED]:
+        logging.warning('Failed to load search result for query due to %s', result.load_type)
+        return None  # TODO: return error embed
     
-    if isinstance(query, lavalink.AudioTrack):
-        result = query
-    else:
-        query = query.strip('<>')  # <url> to suppress embed on Discord
-        result = await _search(
-            lavalink=bot.d.lavalink,
-            query=query,
-        )
-        if not result:
-            raise BaseException('No search result for query')
-    
+    # get player or _join to get player
     player = bot.d.lavalink.player_manager.get(guild_id)
     if not player or not player.is_connected:
-        player = await _join(bot, guild_id, author_id)
+        await _join(bot, guild_id, author_id)
+        player = bot.d.lavalink.player_manager.get(guild_id)
+
+    description = None
+    if result.load_type in [LoadType.TRACK, LoadType.SEARCH]:
+
+        track = result.tracks[0]
+        player.add(requester=author_id, track=track, index=index)
+        player.set_loop(1) if loop else None
+        description = f'[{track.title}]({track.uri}) added to queue <@{author_id}>'
+
+    if result.load_type == LoadType.PLAYLIST:
+        
+        query = 'https://www.youtube.com/watch?v=X7sSE3yCNLI'  # temporary for error
+
+        tracks = result.tracks
+        while result.tracks:
+            pop_at = randrange(len(tracks)) if shuffle else 0
+            player.add(requester=author_id, track=tracks.pop(pop_at))
+
+        player.set_loop(2) if loop else None
+        description = f'Playlist [{result.playlist_info.name}]({query})' \
+            f' - {len(result["tracks"])} tracks added to queue <@{author_id}>'
 
     player.textchannel_id = textchannel
-
-    # if None then keep cur state
-    if autoplay == 'True':
-        player.is_autoplay = True
-    elif autoplay == ' False':
-        player.is_autoplay = False
-
-    description = ''
-    if isinstance(result, dict):  # playlist
-        for track in result['tracks']:
-            player.add(requester=author_id, track=track)
-        if loop:
-            player.set_loop(2)
-        description = f'Playlist [{result["playlist"]["name"]}]({result["playlist"]["url"]})' \
-            f' - {len(result["tracks"])} tracks added to queue <@{author_id}>'
-    else:
-        player.add(requester=author_id, track=result)
-        if loop:
-            player.set_loop(1)
-        description = f'[{result.title}]({result.uri}) added to queue <@{author_id}>'
-
+    if autoplay:
+        if autoplay == 1:
+            player.is_autoplay = True
+        elif autoplay == -1:
+            player.is_autoplay = False
+    
     if not player.is_playing:
         await player.play()
 
