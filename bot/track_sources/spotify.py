@@ -1,5 +1,4 @@
-from lavalink.models import (DeferredAudioTrack, LoadResult, LoadType,
-                             PlaylistInfo, Source)
+from lavalink.models import (DeferredAudioTrack, LoadResult, LoadType, PlaylistInfo, Source)
 import urllib.parse
 import requests
 import typing as t
@@ -7,20 +6,17 @@ import typing as t
 class LoadError(Exception):
     pass
 
-class CustomAudioTrack(DeferredAudioTrack):
-    # A DeferredAudioTrack allows us to load metadata now, and a playback URL later.
-    # This makes the DeferredAudioTrack highly efficient, particularly in cases
-    # where large playlists are loaded.
+class SpotifyTrack(DeferredAudioTrack):
 
     async def load(self, client):  # Load our 'actual' playback track using the metadata from this one.
-        result: LoadResult = await client.get_tracks('ytmsearch:{0.title} {0.author}'.format(self))  # Search for our track on YouTube.
+        result: LoadResult = await client.get_tracks('ytsearch:{0.title} {0.author}'.format(self))  # Search for our track on YouTube.
 
         if result.load_type != LoadType.SEARCH or not result.tracks:  # We're expecting a 'SEARCH' due to our 'ytsearch' prefix above.
             raise LoadError
 
         first_track = result.tracks[0]  # Grab the first track from the results.
         
-        # update metadata?
+        # update metadata
         self.identifier = first_track.identifier
         self.duration = first_track.duration
         self.uri = first_track.uri
@@ -85,24 +81,24 @@ class SpofitySource(Source):
     async def load_item(self, client, query: str) -> t.Optional[LoadResult]:
 
         if not (playlist_id := self.parse_spotify_playlist_id(query)):
-            return LoadResult(LoadType.NO_MATCHES, [], playlist_info=PlaylistInfo.none())
+            return None
 
         if not (playlist := self.get_playlist_tracks(playlist_id)):
-            return LoadResult(LoadType.NO_MATCHES, [], playlist_info=PlaylistInfo.none())
+            return None
 
         playlist_tracks = []
         for item in playlist[1]:
             track_info = item['track']
             
-            track = CustomAudioTrack(data={
+            track = SpotifyTrack(data={
                 'identifier': track_info['id'],
                 'isSeekable': True,
                 'author': ', '.join([artist['name'] for artist in track_info['artists']]),
                 'length': track_info['duration_ms'],
                 'isStream': False,
                 'title': track_info['name'],
-                'uri': track_info['external_urls']['spotify'],
+                'uri': track_info['external_urls'].get('spotify', None),
             }, requester=0),
             playlist_tracks.append(track[0])
 
-        return LoadResult(LoadType.TRACK, playlist_tracks, playlist_info=PlaylistInfo(name=playlist[0]))
+        return LoadResult(LoadType.PLAYLIST, playlist_tracks, playlist_info=PlaylistInfo(name=playlist[0]))
