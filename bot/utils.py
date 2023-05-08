@@ -2,17 +2,6 @@ import urllib.parse
 import lavalink
 import typing as t
 
-def get_spotify_playlist_id(url: str):
-
-    parsed_url = urllib.parse.urlparse(url)
-
-    if parsed_url.scheme != "https" or parsed_url.hostname != "open.spotify.com" \
-        or not parsed_url.path.startswith("/playlist/"):
-        return None
-
-    path_parts = parsed_url.path.split("/")
-    return path_parts[-1]
-
 def parse_time(time: int) -> t.Tuple[int, int, int, int]:
     """
     Parses the given time into days, hours, minutes and seconds.
