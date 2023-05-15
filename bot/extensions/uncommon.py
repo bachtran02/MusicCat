@@ -1,8 +1,6 @@
-import random
 import lightbulb
 
-from bot.impl import _join, _play, _search
-from bot.constants import BASE_YT_URL
+from bot.impl import _play, _search
 from bot.checks import valid_user_voice
 
 plugin = lightbulb.Plugin('Uncommon', 'Uncommon personal music commands')
