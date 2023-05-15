@@ -1,34 +1,45 @@
 import urllib.parse
 import lavalink
+import typing as t
 
-def get_spotify_playlist_id(url: str):
+def parse_time(time: int) -> t.Tuple[int, int, int, int]:
+    """
+    Parses the given time into days, hours, minutes and seconds.
+    Useful for formatting time yourself.
 
-    parsed_url = urllib.parse.urlparse(url)
+    Parameters
+    ----------
+    time: :class:`int`
+        The time in milliseconds.
 
-    if parsed_url.scheme != "https" or parsed_url.hostname != "open.spotify.com" \
-        or not parsed_url.path.startswith("/playlist/"):
-        return None
+    Returns
+    -------
+    Tuple[:class:`int`, :class:`int`, :class:`int`, :class:`int`]
+    """
+    days, remainder = divmod(time / 1000, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
 
-    path_parts = parsed_url.path.split("/")
-    return path_parts[-1]
+    return days, hours, minutes, seconds
 
-def convert_ms(ms: int) -> str:
-
-    ms = round(ms)
-    total_seconds = ms // 1000
-
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    seconds = total_seconds % 60
-
-    return (hours, minutes, seconds)
-
-def duration_str(duration: int) -> str:
+def format_time(time: int, option: str = 'a') -> str:
     
-    time = convert_ms(duration)
-    timestr = f'{time[0]}:{time[1]:02}' if time[0] else f'{time[1]}'
-    timestr += f':{time[2]:02}'
-    return timestr
+    days, hours, minutes, seconds = parse_time(time)
+
+    if option == 'a':
+        if days:
+            option = 'd'
+        elif hours:
+            option = 'h'
+        else:
+            option = 'm'
+        
+    if option == 'd':
+        return '%d:%02d:%02d:%02d' % (days, hours, minutes, seconds)
+    elif option == 'h':
+        return '%d:%02d:%02d' % (days * 24 + hours, minutes, seconds)
+    elif option == 'm':
+        return '%d:%02d' % ((days * 24 + hours) * 60 + minutes, seconds)
 
 def progress_bar(percent: float) -> str:
 
@@ -55,7 +66,14 @@ def player_bar(player: lavalink.DefaultPlayer):
         playtime = 'LIVE'
         bar = progress_bar(0.99)
     else:
-        playtime = f'{duration_str(player.position)} | {duration_str(player.current.duration)}'
+        playtime = f'{format_time(player.position)} | {format_time(player.current.duration)}'
         bar = progress_bar(player.position/player.current.duration)
 
     return f'{play_emj} {bar} `{playtime}` {loop_emj}{shuffle_emj} \n'
+
+def transform_string(string:str = '', max_length:int = -1):
+    
+    if not string or max_length == -1:
+        return
+    
+    

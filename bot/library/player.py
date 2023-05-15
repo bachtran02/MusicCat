@@ -10,8 +10,8 @@ class CustomPlayer(DefaultPlayer):
     def __init__(self, guild_id: int, node: 'Node'):
         super().__init__(guild_id, node)
 
-        self.is_autoplay = False
-        self.textchannel_id = None 
+        self.is_autoplay: bool = False
+        self.textchannel_id: int = None 
         self.autoqueue: List[AudioTrack] = []
 
     def clear_player(self):
@@ -26,19 +26,18 @@ class CustomPlayer(DefaultPlayer):
         self.queue.clear()
         self.autoqueue.clear()
 
-    def add_autoplay(self, related_tracks: List[AudioTrack]):
+    def add_autoqueue(self, related_tracks: List[AudioTrack]):
 
         for track in related_tracks:
             self.autoqueue.append(track)
 
-    async def autoplay(self, botid=None) -> Optional[AudioTrack]:
+    async def autoplay(self) -> Optional[AudioTrack]:
 
         if not (self.is_autoplay and self.autoqueue):
             return None
     
         popat = random.randrange(len(self.autoqueue))
         track = self.autoqueue.pop(popat)
-        track.requester = botid
 
         await self.play(track)
         return self.current
@@ -108,16 +107,23 @@ class CustomPlayer(DefaultPlayer):
         curtrack = self.current
         await self.play()
         return curtrack
-
-    async def leave(self):
-
-        channel_id = self.channel_id
-        self.clear_player()
-        self.channel_id = None
-        return channel_id
             
     async def stop(self):
         
         await self.node._send(op='stop', guildId=self._internal_id)
         self.clear_player()
-        
+    
+    def add(self, track: Union[AudioTrack, DeferredAudioTrack, Dict], requester: int = 0, index: int = -1):
+    
+        at = track
+
+        if isinstance(track, dict):
+            at = AudioTrack(track, requester)
+
+        if requester != 0:
+            at.requester = requester
+
+        if index == -1:
+            self.queue.append(at)
+        else:
+            self.queue.insert(index, at)
