@@ -8,7 +8,6 @@ import hikari
 import lightbulb
 import miru
 
-from bot.library.autoqueue import Autoqueue
 from bot.library.player import CustomPlayer
 from bot.logger.custom_logger import track_logger
 from bot.impl import _join, _play, _search
@@ -54,10 +53,9 @@ class EventHandler:
 
         # add to autoqueue
         if player.is_autoplay:
-            related_tracks = await plugin.bot.d.autoqueue.get_related(track.identifier)
-            player.add_autoplay(related_tracks)
+            result = await plugin.bot.d.lavalink.get_tracks(query=f'getrec:{track.title}', check_local=True)
+            player.add_autoqueue(result.tracks) if result.load_type == 'PLAYLIST_LOADED' else None
 
-        # plugin.bot.d.StreamCount.handle_stream(track)
         track_logger.info('%s - %s - %s', track.title, track.author, track.uri)
         logging.info('Track started on guild: %s', event.player.guild_id)
 
@@ -70,7 +68,7 @@ class EventHandler:
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         if player.is_autoplay:
-            await player.autoplay(plugin.bot.get_me().id)
+            await player.autoplay()
         else:
             await plugin.bot.update_presence(activity=None)
         logging.info('Queue finished on guild: %s', event.player.guild_id)
@@ -93,16 +91,13 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     )
     client.register_source(
         SpofitySource(
+            bot_id=plugin.bot.get_me().id,
             client_id=os.environ['SPOTIFY_CLIENT_ID'],
             client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
         )
     )
     client.register_source(lnchillSource())
-
     plugin.bot.d.lavalink = client
-    plugin.bot.d.autoqueue = Autoqueue(client)
-
-    # plugin.bot.d.yt = client = build('youtube', 'v3', static_discovery=False, developerKey=os.environ['YOUTUBE_API_KEY'])
     
 
 @plugin.command()
@@ -379,14 +374,14 @@ async def autoplay(ctx:lightbulb.Context) -> None:
     """Enable/disable autoplay"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    
+
     if player.is_autoplay:
         player.is_autoplay = False
         player.autoqueue.clear()
     else:
         player.is_autoplay = True
-        related_tracks = await plugin.bot.d.autoqueue.get_related(player.current.identifier)
-        player.add_autoplay(related_tracks)
+        result = await plugin.bot.d.lavalink.get_tracks(query=f'getrec:{player.current.title}', check_local=True)
+        player.add_autoqueue(result.tracks) if result.load_type == 'PLAYLIST_LOADED' else None
 
     await ctx.respond(embed=hikari.Embed(
         description = f'🎲 {("Autoplay enabled" if player.is_autoplay else "Autoplay disabled")}',

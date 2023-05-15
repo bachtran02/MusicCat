@@ -26,19 +26,18 @@ class CustomPlayer(DefaultPlayer):
         self.queue.clear()
         self.autoqueue.clear()
 
-    def add_autoplay(self, related_tracks: List[AudioTrack]):
+    def add_autoqueue(self, related_tracks: List[AudioTrack]):
 
         for track in related_tracks:
             self.autoqueue.append(track)
 
-    async def autoplay(self, botid=None) -> Optional[AudioTrack]:
+    async def autoplay(self) -> Optional[AudioTrack]:
 
         if not (self.is_autoplay and self.autoqueue):
             return None
     
         popat = random.randrange(len(self.autoqueue))
         track = self.autoqueue.pop(popat)
-        track.requester = botid
 
         await self.play(track)
         return self.current
