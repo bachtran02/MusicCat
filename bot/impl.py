@@ -37,9 +37,16 @@ async def _search(lavalink: lavalink.Client, source: str = None, client = None, 
 
     url_rx = re.compile(r'https?://(?:www\.)?.+')
     if not url_rx.match(query):
-        query = f'ytsearch:{query}'  # or ytsearch:
+        query = f'ytsearch:{query}'  # or ytmsearch:
     
-    return await lavalink.get_tracks(query=query, check_local=True)
+    result = await lavalink.get_tracks(query=query, check_local=True)
+    
+    # save playlist url in first track's extra  TODO: improve this 
+    if result.load_type == 'PLAYLIST_LOADED' and result.tracks:
+        result.tracks[0].extra['playlist_url'] = query
+
+    return result
+        
 
 async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         textchannel: int = 0, loop: bool = False, shuffle: bool = False, index: int = -1, 
@@ -67,16 +74,16 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
 
     if result.load_type == LoadType.PLAYLIST:
         
-        query = 'https://www.youtube.com/watch?v=X7sSE3yCNLI'  # temporary for error
-
         tracks = result.tracks
-        while result.tracks:
+        playlist_len = len(tracks)
+        playlist_url = tracks[0].extra.get('playlist_url', None)
+        while tracks:
             pop_at = randrange(len(tracks)) if shuffle else 0
             player.add(requester=author_id, track=tracks.pop(pop_at))
 
         player.set_loop(2) if loop else None
-        description = f'Playlist [{result.playlist_info.name}]({query})' \
-            f' - {len(result["tracks"])} tracks added to queue <@{author_id}>'
+        description = f'Playlist [{result.playlist_info.name}]({playlist_url})' \
+            f' - {playlist_len} tracks added to queue <@{author_id}>'
 
     player.textchannel_id = textchannel
     if autoplay:
