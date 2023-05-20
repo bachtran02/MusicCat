@@ -41,13 +41,18 @@ class EventHandler:
         if player.loop == player.LOOP_SINGLE:  
             return
 
+        description  = f'[{track.title}]({track.uri})'     + '\n'
+        description += f'Requested - <@{track.requester}>' + '\n'
         try:
             await plugin.bot.rest.create_message(
                 channel=player.textchannel_id,
                 embed=hikari.Embed(
-                    description = f'▶️ **Now playing:** [{track.title}]({track.uri}) - <@{track.requester}>',
-                    colour = COLOR_DICT['GREEN']
-                ))
+                    title='🎵 **Now playing**',
+                    description = description,
+                    colour = COLOR_DICT['GREEN'],
+                    
+                ).set_thumbnail(track.artwork_url)
+            )
         except Exception as error:
             logging.error('Failed to send message on track start due to: %s', error)
 
@@ -87,11 +92,10 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
     client.add_node(
         host='localhost',
         port=int(os.environ['LAVALINK_PORT']), password=os.environ['LAVALINK_PASS'],
-        region='us', name='default-node', reconnect_attempts=-1
+        region='us', name='default-node'
     )
     client.register_source(
         SpofitySource(
-            bot_id=plugin.bot.get_me().id,
             client_id=os.environ['SPOTIFY_CLIENT_ID'],
             client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
         )
@@ -126,7 +130,7 @@ async def play(ctx: lightbulb.Context) -> None:
     if not embed:
         await ctx.respond('⚠️ No result for query!')
     else:
-        await ctx.respond(embed=embed)
+        await ctx.respond(embed=embed, delete_after=30)
 
 
 @plugin.command()
@@ -402,7 +406,7 @@ async def search(ctx: lightbulb.Context) -> None:
 
     result = await _search(lavalink=plugin.bot.d.lavalink, query=query)
     if result.load_type != 'SEARCH_RESULT':
-        await ctx.respond('⚠️ No search result for query')
+        await ctx.respond('⚠️ Failed to load search result for query!', delete_after=30)
         return
 
     view = miru.View(timeout=60)
@@ -414,10 +418,11 @@ async def search(ctx: lightbulb.Context) -> None:
 
     message = await ctx.respond(
         components=view,
+        delete_after=60,
         embed=hikari.Embed(
             color=COLOR_DICT['GREEN'],
             description=f'🔍 **Search results for:** `{query}`',
-        ))
+        ),)
     
     await view.start(message)
     await view.wait()  # Wait until the view is stopped or times out
