@@ -1,4 +1,4 @@
-from lavalink.models import (DeferredAudioTrack, LoadResult, LoadType, PlaylistInfo, Source)
+from lavalink import (DeferredAudioTrack, LoadResult, LoadType, PlaylistInfo, Source)
 import typing as t
 import random
 from bot.constants import BASE_YT_URL
