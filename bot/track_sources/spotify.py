@@ -1,4 +1,5 @@
-from lavalink.models import (DeferredAudioTrack, LoadResult, LoadType, PlaylistInfo, Source)
+from lavalink import (DeferredAudioTrack, LoadResult, LoadType,
+                      PlaylistInfo, Source)
 import urllib.parse
 import requests
 import typing as t
@@ -20,6 +21,7 @@ class SpotifyTrack(DeferredAudioTrack):
         self.identifier = first_track.identifier
         self.duration = first_track.duration
         self.uri = first_track.uri
+        self.artwork_url = first_track.artwork_url
 
         base64 = first_track.track  # Extract the base64 string from the track.
         self.track = base64  # We'll store this for later, as it allows us to save making network requests
@@ -28,10 +30,9 @@ class SpotifyTrack(DeferredAudioTrack):
 
 # source to search and access Spotify playlists only
 class SpofitySource(Source):
-    def __init__(self, bot_id: str = None, client_id: str = None, client_secret: str = None):
+    def __init__(self, client_id: str = None, client_secret: str = None):
         super().__init__(name='spotify')
         
-        self.bot_id = bot_id
         self._client_id = client_id
         self._client_secret = client_secret
         self._token = None
@@ -125,7 +126,7 @@ class SpofitySource(Source):
             for item in related_tracks:
                 track = SpotifyTrack(
                     data=self.convert_metadata(item),
-                    requester=self.bot_id,
+                    requester=client._user_id,
                 ),
                 rec_tracks.append(track[0])
             return LoadResult(LoadType.PLAYLIST, rec_tracks, playlist_info=None)

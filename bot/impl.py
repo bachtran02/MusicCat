@@ -40,7 +40,7 @@ async def _search(lavalink: lavalink.Client, source: str = None, client = None, 
         query = f'ytsearch:{query}'  # or ytmsearch:
     
     result = await lavalink.get_tracks(query=query, check_local=True)
-    
+
     # save playlist url in first track's extra  TODO: improve this 
     if result.load_type == 'PLAYLIST_LOADED' and result.tracks:
         result.tracks[0].extra['playlist_url'] = query
@@ -54,8 +54,8 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
     
     assert result is not None
 
-    if result.load_type in [LoadType.NO_MATCHES, LoadType.LOAD_FAILED]:
-        logging.warning('Failed to load search result for query due to %s', result.load_type)
+    if result.load_type in [LoadType.ERROR, LoadType.EMPTY]:
+        logging.warning('Failed to load search result [LoadType: %s]', result.load_type)
         return None  # TODO: return error embed
     
     # get player or _join to get player
@@ -66,7 +66,6 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
 
     description = None
     if result.load_type in [LoadType.TRACK, LoadType.SEARCH]:
-
         track = result.tracks[0]
         player.add(requester=author_id, track=track, index=index)
         player.set_loop(1) if loop else None
@@ -97,5 +96,5 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
 
     return hikari.Embed(
         description=description,
-        color=COLOR_DICT['GREEN']
+        color=COLOR_DICT['GREEN'],
     )

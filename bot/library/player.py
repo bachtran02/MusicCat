@@ -1,8 +1,7 @@
 import random
-from lavalink.models import DefaultPlayer, AudioTrack, DeferredAudioTrack
-from lavalink.events import (NodeChangedEvent, QueueEndEvent, TrackEndEvent,
-                     TrackExceptionEvent, TrackLoadFailedEvent,
-                     TrackStartEvent, TrackStuckEvent)
+from lavalink import (DefaultPlayer, AudioTrack, DeferredAudioTrack,
+                    QueueEndEvent, TrackLoadFailedEvent,TrackStartEvent,
+                    TrackLoadFailedEvent, LoadError, InvalidTrack)
 from typing import Optional, Union, List, Dict
 
 class CustomPlayer(DefaultPlayer):
@@ -17,11 +16,7 @@ class CustomPlayer(DefaultPlayer):
     def clear_player(self):
         """Clear all existing configs, clear queue"""
 
-        self.current = None
-        self.shuffle = False
-        self.loop = 0
-        self.is_autoplay = False
-
+        [self.loop, self.current, self.shuffle, self.is_autoplay] = [0, None, False, False]
         # clear all queues  
         self.queue.clear()
         self.autoqueue.clear()
@@ -44,7 +39,7 @@ class CustomPlayer(DefaultPlayer):
 
     async def play(self, track: Optional[Union[AudioTrack, DeferredAudioTrack, Dict]] = None, start_time: Optional[int] = 0,
                    end_time: Optional[int] = None, no_replace: Optional[bool] = False, volume: Optional[int] = None,
-                   pause: Optional[bool] = False,):
+                   pause: Optional[bool] = False, **kwargs):
 
         if no_replace and self.is_playing:
             return
@@ -68,8 +63,8 @@ class CustomPlayer(DefaultPlayer):
         if not track:
             if not self.queue:
                 self.current = None
-                await self.node._send(op='stop', guildId=self._internal_id)
-                await self.node._dispatch_event(QueueEndEvent(self))
+                await self.node.update_player(self._internal_id, encoded_track=None)
+                await self.client._dispatch_event(QueueEndEvent(self))
                 return
 
             pop_at = random.randrange(len(self.queue)) if self.shuffle else 0
@@ -91,16 +86,16 @@ class CustomPlayer(DefaultPlayer):
                 raise InvalidTrack('Cannot play the AudioTrack as \'track\' is None, and it is not a DeferredAudioTrack!')
 
             try:
-                playable_track = await track.load(self.node._manager._lavalink)
+                playable_track = await track.load(self.client)
             except LoadError as load_error:
-                await self.node._dispatch_event(TrackLoadFailedEvent(self, track, load_error))
+                await self.client._dispatch_event(TrackLoadFailedEvent(self, track, load_error))
 
         if playable_track is None:  # This should only fire when a DeferredAudioTrack fails to yield a base64 track string.
-            await self.node._dispatch_event(TrackLoadFailedEvent(self, track, None))
+            await self.client._dispatch_event(TrackLoadFailedEvent(self, track, None))
             return
 
-        await self.play_track(playable_track, start_time, end_time, no_replace, volume, pause)
-        await self.node._dispatch_event(TrackStartEvent(self, track))
+        await self.play_track(playable_track, start_time, end_time, no_replace, volume, pause, **kwargs)
+        await self.client._dispatch_event(TrackStartEvent(self, track))
 
     async def skip(self):
 
@@ -110,7 +105,8 @@ class CustomPlayer(DefaultPlayer):
             
     async def stop(self):
         
-        await self.node._send(op='stop', guildId=self._internal_id)
+        await self.node.update_player(self._internal_id, encoded_track=None)
+        self.current = None
         self.clear_player()
     
     def add(self, track: Union[AudioTrack, DeferredAudioTrack, Dict], requester: int = 0, index: int = -1):
