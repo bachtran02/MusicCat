@@ -14,7 +14,13 @@ plugin = lightbulb.Plugin('Uncommon', 'Uncommon personal music commands')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def chill(ctx: lightbulb.Context) -> None:
 
-    result = await _search(lavalink=plugin.bot.d.lavalink, source='linhnhichill', query='linhnhichill')
+    query = 'linhnhichill'
+    query += ':latest' if ctx.options.latest else ''
+
+    result = await _search(
+        lavalink=plugin.bot.d.lavalink, 
+        source='linhnhichill', query=query,
+    )
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
         author_id=ctx.author.id, textchannel=ctx.channel_id, autoplay=False,
