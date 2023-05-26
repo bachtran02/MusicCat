@@ -3,6 +3,7 @@ from lavalink import (DeferredAudioTrack, LoadResult, LoadType,
 import urllib.parse
 import requests
 import typing as t
+import logging
 
 class LoadError(Exception):
     pass
@@ -10,17 +11,22 @@ class LoadError(Exception):
 class SpotifyTrack(DeferredAudioTrack):
 
     async def load(self, client):
-        result: LoadResult = await client.get_tracks('ytsearch:{0.title} {0.author}'.format(self))  # Search for our track on YouTube.
-
-        if result.load_type != LoadType.SEARCH or not result.tracks:  # We're expecting a 'SEARCH' due to our 'ytsearch' prefix above.
+        
+        # search for track using isrc
+        result: LoadResult = await client.get_tracks(f'ytsearch:{self.isrc}')
+        if result.load_type != LoadType.SEARCH or not result.tracks:
+            logging.warning('Failed to load track using isrc [%s, isrc=%s]', self, self.isrc)
+            # if failed search using title + author 
+            result = await client.get_tracks(f'ytsearch:{self.title} {self.author}')
+        if result.load_type != LoadType.SEARCH or not result.tracks:
             raise LoadError
 
         first_track = result.tracks[0]  # Grab the first track from the results.
         
         # update metadata
-        self.identifier = first_track.identifier
-        self.duration = first_track.duration
         self.uri = first_track.uri
+        self.duration = first_track.duration
+        self.identifier = first_track.identifier
         self.artwork_url = first_track.artwork_url
 
         base64 = first_track.track  # Extract the base64 string from the track.
@@ -61,6 +67,8 @@ class SpofitySource(Source):
             'isStream': False,
             'title': track.get('name', None),
             'uri': track.get('external_urls', {}).get('spotify', None),
+            'isrc': track.get('external_ids', {}).get('isrc', None)
+            # 'artwork_url': track.get('album', {}).get('images', [])[0].get('url', None),
         }
 
     def refresh_access_token(self):
