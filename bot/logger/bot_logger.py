@@ -10,33 +10,40 @@ bot_logging_config = {
     'disable_existing_loggers': False,
 
     'root': {
-        'handlers': ['file_handler', 'console_handler'],
+        'handlers': ['rotating_file_handler', 'console_handler'],
         'level': 'INFO',
     },
 
     'handlers': {
-        'file_handler': {
-            'class': 'logging.FileHandler',
-            'formatter': 'file',
-            'filename': path,
-            'mode': 'a',
-            'encoding': 'utf-8'
-        },
-        'console_handler': { 
-            'level': 'INFO',
-            'formatter': 'console',
+        'console_handler': {
             'class': 'logging.StreamHandler',
+            'formatter': 'console',
             'stream': 'ext://sys.stdout',  # Default is stderr
+        },
+        'rotating_file_handler': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'encoding': 'utf-8',
+            'filename': path,
+            'formatter': 'file',
+            'backupCount': 10,
+            'when': 'midnight',
+            'utc': False,
         },
     },
 
     'formatters': {
         'console': {
-            '()': 'coloredlogs.ColoredFormatter', 
-            'format': "%(asctime)s %(levelname)s %(name)s.%(funcName)s:%(lineno)d: %(message)s"
+            '()': 'colorlog.ColoredFormatter',
+            'format': 
+                "%(log_color)s%(bold)s%(levelname)-1.1s%(thin)s "
+                "%(asctime)23.23s "
+                "%(bold)s%(name)s: "
+                "%(thin)s%(message)s%(reset)s"
         },
         'file': {
-            'format': "%(asctime)s %(levelname)s %(name)s.%(funcName)s:%(lineno)d: %(message)s"
+            'format':
+                "%(asctime)s %(levelname)s %(name)s."
+                "%(funcName)s:%(lineno)d: %(message)s"
         }
     },
 }
