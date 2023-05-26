@@ -47,7 +47,7 @@ class EventHandler:
             await plugin.bot.rest.create_message(
                 channel=player.textchannel_id,
                 embed=hikari.Embed(
-                    title='🎵 **Now playing**',
+                    title='🎶 **Now playing**',
                     description = description,
                     colour = COLOR_DICT['GREEN'],
                     
@@ -100,7 +100,9 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
             client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
         )
     )
-    client.register_source(lnchillSource())
+    client.register_source(
+        lnchillSource(token=os.environ['YOUTUBE_API_KEY'])
+    )
     plugin.bot.d.lavalink = client
     
 
@@ -503,7 +505,8 @@ async def player(ctx: lightbulb.Context) -> None:
         embed=hikari.Embed(
             description=desc,
             color=COLOR_DICT['GREEN']
-        ))
+        ).set_thumbnail(player.current.artwork_url)
+    )
 
     await view.start(message)  # Start listening for interactions
     await view.wait()

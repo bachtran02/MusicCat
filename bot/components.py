@@ -26,7 +26,7 @@ class PlayerView(miru.View):
         return hikari.Embed(
             description=desc,
             color=COLOR_DICT['GREEN']
-        )
+        ).set_thumbnail(player.current.artwork_url)
         
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏮️')
     async def previous(self, button: miru.Button, ctx: miru.ViewContext) -> None:
@@ -42,6 +42,7 @@ class PlayerView(miru.View):
     async def stop(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         player = self.get_player(ctx.guild_id)
         await player.stop()
+        await self.bot.update_presence(activity=None) # clear presence
         await ctx.edit_response(embed=self.get_player_embed(player))
 
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏭️')
