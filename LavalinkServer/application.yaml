@@ -89,6 +89,7 @@ logging:
     rollingpolicy:
       max-file-size: 1GB
       max-history: 30
+
 spring:
   mvc:
     async:

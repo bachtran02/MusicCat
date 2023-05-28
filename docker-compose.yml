@@ -1,22 +1,30 @@
-version: '2.15'
+version: '3.8'
 
 services:
   lavalink:
-    build:
-      context: ./LavalinkServer
-      dockerfile: Dockerfile
+    image: ghcr.io/lavalink-devs/lavalink:6f62e58
+    container_name: lavalink
+    restart: always
+    environment:
+      - _JAVA_OPTIONS=-Xmx6G
+      - SERVER_PORT=2333
+      - LAVALINK_SERVER_PASSWORD=youshallnotpass 
     volumes:
       - ./LavalinkServer/logs:/logs
+      - ./LavalinkServer/application.yaml:/opt/Lavalink/application.yml
     expose:
       - 2333
-    restart: always
+    ports:
+      - 2333:2333
 
   bot:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: bot
     depends_on:
       - lavalink
     volumes:
       - ./logs:/logs
     restart: always
+    
