@@ -312,7 +312,7 @@ async def queue(ctx : lightbulb.Context) -> None:
         if i == 0:
             queue_description += '\n' + '**Up next:**'
         track = player.queue[i]
-        queue_description = queue_description + '\n' + f'[{i + 1}. {track.title}]({track.uri}) `{format_time(track.duration)}` <@!{track.requester}>'
+        queue_description = queue_description + '\n' + f'{i + 1}. [{track.title}]({track.uri}) `{format_time(track.duration)}` <@!{track.requester}>'
 
     await ctx.respond(embed=hikari.Embed(
         title = f'🎵 Queue',
