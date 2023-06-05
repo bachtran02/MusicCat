@@ -5,7 +5,7 @@ import random
 import requests
 from bot.constants import BASE_YT_URL
 
-from bot.fixture import Fixture
+# from bot.fixture import Fixture
 
 class LoadError(Exception):
     pass
@@ -71,27 +71,27 @@ class talkSportStream(DeferredAudioTrack):
         return base64
 
 
-class talkSportSource(Source):
-    def __init__(self):
-        super().__init__(name='talkSport')
+# class talkSportSource(Source):
+#     def __init__(self):
+#         super().__init__(name='talkSport')
     
-    async def load_item(self, client, query: Fixture = None, use_source: bool = False) -> t.Optional[LoadResult]:
+#     async def load_item(self, client, query: Fixture = None, use_source: bool = False) -> t.Optional[LoadResult]:
 
-        if not use_source:
-            return None
+#         if not use_source:
+#             return None
         
-        result = [talkSportStream(
-            data={
-                'identifier': query.fid,
-                'isSeekable': False,
-                'author': 'talkSPORT',
-                'length': 0x7FFFFFFFFFFFFFFF,  # stream never expires
-                'isStream': True,
-                'title': query.title,
-                'uri': query.url,
-                'isrc': None,
-            },
-            requester=0,
-            stream_url=query.stream_url
-        )]
-        return LoadResult(LoadType.TRACK, result, playlist_info=None)
+#         result = [talkSportStream(
+#             data={
+#                 'identifier': query.fid,
+#                 'isSeekable': False,
+#                 'author': 'talkSPORT',
+#                 'length': 0x7FFFFFFFFFFFFFFF,  # stream never expires
+#                 'isStream': True,
+#                 'title': query.title,
+#                 'uri': query.url,
+#                 'isrc': None,
+#             },
+#             requester=0,
+#             stream_url=query.stream_url
+#         )]
+#         return LoadResult(LoadType.TRACK, result, playlist_info=None)
