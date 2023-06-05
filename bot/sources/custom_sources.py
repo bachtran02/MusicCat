@@ -50,25 +50,25 @@ class lnchillSource(Source):
         return LoadResult(LoadType.NO_MATCHES, tracks=[], playlist_info=None)
 
 
-class talkSportStream(DeferredAudioTrack):
+# class talkSportStream(DeferredAudioTrack):
 
-    def __init__(self, data: dict, requester: int = 0, stream_url : str = None, **extra):
-        super().__init__(data, requester, **extra)
-        self.stream_url = stream_url
+#     def __init__(self, data: dict, requester: int = 0, stream_url : str = None, **extra):
+#         super().__init__(data, requester, **extra)
+#         self.stream_url = stream_url
 
-    async def load(self, client):
+#     async def load(self, client):
         
-        # search for track using isrc
-        result: LoadResult = await client.get_tracks(query=self.stream_url)
-        if result.load_type != LoadType.TRACK or not result.tracks:
-            raise LoadError
+#         # search for track using isrc
+#         result: LoadResult = await client.get_tracks(query=self.stream_url)
+#         if result.load_type != LoadType.TRACK or not result.tracks:
+#             raise LoadError
 
-        first_track = result.tracks[0] 
+#         first_track = result.tracks[0] 
 
-        base64 = first_track.track  
-        self.track = base64
+#         base64 = first_track.track  
+#         self.track = base64
 
-        return base64
+#         return base64
 
 
 # class talkSportSource(Source):

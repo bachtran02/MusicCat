@@ -16,8 +16,8 @@ from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
 from bot.components import PlayerView, CustomTextSelect, RemoveButton
 
-from bot.track_sources.spotify import SpofitySource
-from bot.track_sources.custom_sources import lnchillSource
+from bot.sources.spotify import SpofitySource
+from bot.sources.custom_sources import lnchillSource
 
 plugin = lightbulb.Plugin('Music', 'Basic music commands')
 
