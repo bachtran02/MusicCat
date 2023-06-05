@@ -124,6 +124,7 @@ class SpofitySource(Source):
 
     async def load_item(self, client, query: str) -> t.Optional[LoadResult]:
 
+        # load Spotify recommendations for query
         if ':' in query and query.split(':', 1)[0] == 'getrec':
             query = query.split(':', 1)[1]
 
@@ -139,6 +140,7 @@ class SpofitySource(Source):
                 rec_tracks.append(track[0])
             return LoadResult(LoadType.PLAYLIST, rec_tracks, playlist_info=None)
 
+        # load Spotify playlist
         if not (playlist_id := self.parse_spotify_playlist_id(query)):
             return None
         if not (playlist := self.get_playlist_tracks(playlist_id)):
