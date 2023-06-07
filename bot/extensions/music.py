@@ -30,12 +30,12 @@ class EventHandler:
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         track = player.current
 
-        await plugin.bot.update_presence(
-            activity = hikari.Activity(
-                name=track.title,
-                type=hikari.ActivityType.STREAMING,
-                url=track.uri,
-            ))
+        # await plugin.bot.update_presence(
+        #     activity = hikari.Activity(
+        #         name=track.title,
+        #         type=hikari.ActivityType.STREAMING,
+        #         url=track.uri,
+        #     ))
         
         # TODO: still create message on first play
         if player.loop == player.LOOP_SINGLE:  
@@ -58,7 +58,8 @@ class EventHandler:
 
         # add to autoqueue
         if player.is_autoplay:
-            result = await plugin.bot.d.lavalink.get_tracks(query=f'getrec:{track.title}', check_local=True)
+            result = await plugin.bot.d.lavalink.get_tracks(query='sp')
+            # result = await plugin.bot.d.lavalink.get_tracks(query=f'getrec:{track.title}', check_local=True)
             player.add_autoqueue(result.tracks) if result.load_type == 'PLAYLIST_LOADED' else None
 
         track_logger.info('%s - %s - %s', track.title, track.author, track.uri)
@@ -74,8 +75,8 @@ class EventHandler:
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         if player.is_autoplay:
             await player.autoplay()
-        else:
-            await plugin.bot.update_presence(activity=None)
+        # else:
+        #     await plugin.bot.update_presence(activity=None)
         logging.info('Queue finished on guild: %s', event.player.guild_id)
         
     @lavalink.listener(lavalink.TrackExceptionEvent)
@@ -94,12 +95,12 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
         port=int(os.environ['LAVALINK_PORT']), password=os.environ['LAVALINK_PASS'],
         region='us', name='default-node'
     )
-    client.register_source(
-        SpofitySource(
-            client_id=os.environ['SPOTIFY_CLIENT_ID'],
-            client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
-        )
-    )
+    # client.register_source(
+    #     SpofitySource(
+    #         client_id=os.environ['SPOTIFY_CLIENT_ID'],
+    #         client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
+    #     )
+    # )
     client.register_source(
         lnchillSource(token=os.environ['YOUTUBE_API_KEY'])
     )
@@ -174,7 +175,7 @@ async def stop(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     await player.stop()
-    await plugin.bot.update_presence(activity=None) # clear presence
+    # await plugin.bot.update_presence(activity=None) # clear presence
 
     await ctx.respond(embed=hikari.Embed(
         description = '⏹️ Stopped playing',
@@ -548,7 +549,7 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     if not bot_voice_state or cur_state.user_id == bot_id:
         if not bot_voice_state and cur_state.user_id == bot_id:  # bot is disconnected
             player.clear_player()
-            await plugin.bot.update_presence(activity=None) # clear presence
+            # await plugin.bot.update_presence(activity=None) # clear presence
             logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
         return
     
