@@ -6,4 +6,4 @@ requests==2.27.1
 colorlog==6.7.0
 APScheduler==3.10.1
 hikari-miru==3.0.3
-git+https://github.com/xuanbachtran02/Lavalink.py.git@working-5.0
+git+https://github.com/bachtran02/Lavalink.py.git@working-5.0
