@@ -1,14 +1,30 @@
 server: # REST and WS server
-  port: 2333
+  port: 2334
   address: 0.0.0.0
 plugins:
-#  name: # Name of the plugin
-#    some_key: some_value # Some key-value pair for the plugin
-#    another_key: another_value
+  lavasrc:
+      providers: # Custom providers for track loading. This is the default
+        # - "dzisrc:%ISRC%" # Deezer ISRC provider
+        # - "dzsearch:%QUERY%" # Deezer search provider
+        - "ytsearch:\"%ISRC%\"" # Will be ignored if track does not have an ISRC. See https://en.wikipedia.org/wiki/International_Standard_Recording_Code
+        - "ytsearch:%QUERY%" # Will be used if track has no ISRC or no track could be found for the ISRC
+        #  you can add multiple other fallback sources here
+      sources:
+        spotify: true # Enable Spotify source
+        applemusic: false # Enable Apple Music source
+        deezer: false # Enable Deezer source
+        yandexmusic: false # Enable Yandex Music source
+        flowerytts: false # Enable Flowery Text-to-Speech source
+      spotify:
+        clientId: "318b909884264b4e9bbffb5e863a24f8"
+        clientSecret: "83f8c848107a405ba8231ba75e6ec3ed"
+        countryCode: "US" # the country code you want to use for filtering the artists top tracks. See https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
+        playlistLoadLimit: 6 # The number of pages at 100 tracks each
+        albumLoadLimit: 6 # The number of pages at 50 tracks each
 lavalink:
   plugins:
-#    - dependency: "group:artifact:version"
-#      repository: "repository"
+    # - dependency: "com.github.TopiSenpai.LavaSrc:lavasrc-plugin:90d549e"
+    #   repository: "https://maven.topi.wtf/snapshots"
   server:
     password: "youshallnotpass"
     sources:
