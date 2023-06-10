@@ -42,19 +42,19 @@ async def _search(lavalink: lavalink.Client, source: str = None, client = None, 
     result = await lavalink.get_tracks(query=query, check_local=True)
 
     # save playlist url in first track's extra  TODO: improve this 
-    if result.load_type == 'PLAYLIST_LOADED' and result.tracks:
+    if result.load_type == LoadType.PLAYLIST and result.tracks:
         result.tracks[0].extra['playlist_url'] = query
 
     return result
         
 
 async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
-        textchannel: int = 0, loop: bool = False, shuffle: bool = False, index: int = -1, 
-        autoplay: int = 0) -> hikari.Embed:
+        textchannel: int = 0, loop: bool = False, shuffle: bool = False, index: int = -1
+        ) -> hikari.Embed:
     
     assert result is not None
 
-    if result.load_type in [LoadType.ERROR, LoadType.EMPTY]:
+    if result.load_type in (LoadType.NO_MATCHES, LoadType.LOAD_FAILED):
         logging.warning('Failed to load search result [LoadType: %s]', result.load_type)
         return None  # TODO: return error embed
     
@@ -85,11 +85,6 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
             f' - {playlist_len} tracks added to queue <@{author_id}>'
 
     player.textchannel_id = textchannel
-    if autoplay:
-        if autoplay == 1:
-            player.is_autoplay = True
-        elif autoplay == -1:
-            player.is_autoplay = False
     
     if not player.is_playing:
         await player.play()

@@ -4,9 +4,9 @@ import random
 import logging
 
 import lavalink
+from lavalink import LoadType
 import hikari
 import lightbulb
-import miru
 
 from bot.library.player import CustomPlayer
 from bot.logger.custom_logger import track_logger
@@ -14,9 +14,8 @@ from bot.impl import _join, _play, _search
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
-from bot.components import PlayerView, CustomTextSelect, RemoveButton
+from bot.components import PlayerView, TrackSelectView
 
-from bot.sources.spotify import SpofitySource
 from bot.sources.custom_sources import lnchillSource
 
 plugin = lightbulb.Plugin('Music', 'Basic music commands')
@@ -29,20 +28,14 @@ class EventHandler:
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         track = player.current
-
-        # await plugin.bot.update_presence(
-        #     activity = hikari.Activity(
-        #         name=track.title,
-        #         type=hikari.ActivityType.STREAMING,
-        #         url=track.uri,
-        #     ))
         
-        # TODO: still create message on first play
-        if player.loop == player.LOOP_SINGLE:  
-            return
+        # # TODO: still create message on first play
+        # if player.loop == player.LOOP_SINGLE:
+        #     return
 
-        description  = f'[{track.title}]({track.uri})'     + '\n'
-        description += f'Requested - <@{track.requester}>' + '\n'
+        description  = '[{0}]({1})\n Requested - <@{2}>\n'.format(
+            track.title, track.uri, track.requester)
+
         try:
             await plugin.bot.rest.create_message(
                 channel=player.textchannel_id,
@@ -56,12 +49,6 @@ class EventHandler:
         except Exception as error:
             logging.error('Failed to send message on track start due to: %s', error)
 
-        # add to autoqueue
-        if player.is_autoplay:
-            result = await plugin.bot.d.lavalink.get_tracks(query='sp')
-            # result = await plugin.bot.d.lavalink.get_tracks(query=f'getrec:{track.title}', check_local=True)
-            player.add_autoqueue(result.tracks) if result.load_type == 'PLAYLIST_LOADED' else None
-
         track_logger.info('%s - %s - %s', track.title, track.author, track.uri)
         logging.info('Track started on guild: %s', event.player.guild_id)
 
@@ -71,12 +58,7 @@ class EventHandler:
 
     @lavalink.listener(lavalink.QueueEndEvent)
     async def queue_finish(self, event: lavalink.QueueEndEvent):
-
-        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-        if player.is_autoplay:
-            await player.autoplay()
-        # else:
-        #     await plugin.bot.update_presence(activity=None)
+        # player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         logging.info('Queue finished on guild: %s', event.player.guild_id)
         
     @lavalink.listener(lavalink.TrackExceptionEvent)
@@ -84,26 +66,28 @@ class EventHandler:
         logging.warning('Track exception event happened on guild: %s', event.player.guild_id)
 
 
-# on ready, create a node to connect to lavalink server
 @plugin.listener(hikari.ShardReadyEvent)
-async def start_bot(event: hikari.ShardReadyEvent) -> None:
+async def on_ready(event: hikari.ShardReadyEvent) -> None:
+
+    nodes = [
+        {'name': 'default-node',  'region': 'us-west'},
+        {'name': 'backup-node', 'region': 'us'}
+    ]
+    sources = [  lnchillSource(token=os.environ['YOUTUBE_API_KEY']),  ]
 
     client = lavalink.Client(user_id=plugin.bot.get_me().id, player=CustomPlayer)
+    
+    for node in nodes:
+        client.add_node(
+            host='localhost', port=2334,
+            password=os.environ['LAVALINK_PASS'],
+            region=node['region'], name=node['name'],
+        )
+    for source in sources:
+        client.register_source(source)
+        logging.info('Registred \'%s\' as source', source.name)
+
     client.add_event_hooks(EventHandler())
-    client.add_node(
-        host='localhost',
-        port=int(os.environ['LAVALINK_PORT']), password=os.environ['LAVALINK_PASS'],
-        region='us', name='default-node'
-    )
-    # client.register_source(
-    #     SpofitySource(
-    #         client_id=os.environ['SPOTIFY_CLIENT_ID'],
-    #         client_secret=os.environ['SPOTIFY_CLIENT_SECRET']
-    #     )
-    # )
-    client.register_source(
-        lnchillSource(token=os.environ['YOUTUBE_API_KEY'])
-    )
     plugin.bot.d.lavalink = client
     
 
@@ -111,25 +95,24 @@ async def start_bot(event: hikari.ShardReadyEvent) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice,
 )
-@lightbulb.option('query', 'The query to search for.', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
-@lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
-@lightbulb.option('loop', 'Loops track', choices=['True'], required=False, default=False)
+@lightbulb.option('query', 'Search query for track', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
+# @lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
+@lightbulb.option('loop', 'Loop track', choices=['True'], required=False, default=False)
 @lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default=False)
 @lightbulb.option('shuffle', 'Shuffle playlist', choices=['True'], required=False, default=False)
-@lightbulb.command('play', 'Searches the query on youtube, or adds the URL to the queue.', auto_defer = True)
+@lightbulb.command('play', 'Play track URL or search query on YouTube', auto_defer = True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
-    """Searches the query on youtube, or adds the URL to the queue."""
+    """Play track URL or search query on YouTube"""
 
     query = ctx.options.query
     index = 0 if ctx.options.next == 'True' else -1 
-    autoplay = -1 if ctx.options.autoplay == 'False' else int(ctx.options.autoplay is not None)
     
-    result = await _search(lavalink=plugin.bot.d.lavalink, query=query)
+    result: lavalink.LoadResult = await _search(lavalink=plugin.bot.d.lavalink, query=query)
     embed = await _play(
         bot=plugin.bot, guild_id=ctx.guild_id, author_id=ctx.author.id,
         result=result, textchannel=ctx.channel_id, loop=(ctx.options.loop == 'True'),
-        autoplay=autoplay, index=index, shuffle=(ctx.options.shuffle == 'True'),)
+        index=index, shuffle=(ctx.options.shuffle == 'True'),)
     if not embed:
         await ctx.respond('⚠️ No result for query!')
     else:
@@ -137,24 +120,11 @@ async def play(ctx: lightbulb.Context) -> None:
 
 
 @plugin.command()
-@lightbulb.add_checks(
-    lightbulb.guild_only, valid_user_voice, player_connected,
-)
-@lightbulb.command('leave', 'Leaves the voice channel the bot is in, clearing the queue.', auto_defer=True)
-@lightbulb.implements(lightbulb.SlashCommand)
-async def leave(ctx: lightbulb.Context) -> None:
-    """Leaves the voice channel the bot is in, clearing the queue."""
-
-    await plugin.bot.update_voice_state(ctx.guild_id, None) # disconnect from voice channel
-    await ctx.respond(f'Left voice channel!')
-
-
-@plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command('join', 'Joins the voice channel you are in.', auto_defer=True)
+@lightbulb.command('join', 'Join the voice channel you are in.', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def join(ctx: lightbulb.Context) -> None:
-    """Joins voice channel user is in"""
+    """Join voice channel user is in"""
    
     try:
         player = await _join(plugin.bot, ctx.guild_id, ctx.author.id)
@@ -166,38 +136,31 @@ async def join(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(
-    lightbulb.guild_only, valid_user_voice, player_playing,
+    lightbulb.guild_only, valid_user_voice, player_connected,
 )
-@lightbulb.command('stop', 'Stops the current song and clears queue.', auto_defer=True)
+@lightbulb.command('leave', 'Leaves the voice channel the bot is in, clearing the queue.', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
-async def stop(ctx: lightbulb.Context) -> None:
-    """Stops the current song (skip to continue)."""
+async def leave(ctx: lightbulb.Context) -> None:
+    """Leave voice channel, clear guild player"""
 
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    await player.stop()
-    # await plugin.bot.update_presence(activity=None) # clear presence
-
-    await ctx.respond(embed=hikari.Embed(
-        description = '⏹️ Stopped playing',
-        colour = COLOR_DICT['RED']
-    ))
-    logging.info('Player stopped on guild: %s', ctx.guild_id)
+    await plugin.bot.update_voice_state(ctx.guild_id, None)
+    await ctx.respond('Left voice channel!')
 
 
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('skip', 'Skips the current song.', auto_defer=True)
+@lightbulb.command('skip', 'Skip the current song.', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def skip(ctx: lightbulb.Context) -> None:
-    """Skips the current song."""
+    """Skip the current song."""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    cur_track = await player.skip()
+    prev_track = await player.skip()
 
     await ctx.respond(embed=hikari.Embed(
-        description = f'Skipped: [{cur_track.title}]({cur_track.uri})',
+        description = f'Skipped: [{prev_track.title}]({prev_track.uri})',
         colour = COLOR_DICT['RED']
     ))
     logging.info('Track skipped on guild: %s', ctx.guild_id)
@@ -207,10 +170,10 @@ async def skip(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('pause', 'Pauses the current song.', auto_defer=True)
+@lightbulb.command('pause', 'Pause the current song.', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def pause(ctx: lightbulb.Context) -> None:
-    """Pauses the current song."""
+    """Pause guild player"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     await player.set_pause(True)
@@ -226,10 +189,10 @@ async def pause(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_connected,
 )
-@lightbulb.command('resume', 'Resumes playing the current song.', auto_defer=True)
+@lightbulb.command('resume', 'Resume playing the current track', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def resume(ctx: lightbulb.Context) -> None:
-    """Resumes playing the current song."""
+    """Resume guild player"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     await player.set_pause(False)
@@ -241,7 +204,46 @@ async def resume(ctx: lightbulb.Context) -> None:
     logging.info('Track resumed on guild: %s', ctx.guild_id)
 
 
-# TODO: seek using H:M:S
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, valid_user_voice, player_playing,
+)
+@lightbulb.command('stop', 'Stops the current song and clears queue.', auto_defer=True)
+@lightbulb.implements(lightbulb.SlashCommand)
+async def stop(ctx: lightbulb.Context) -> None:
+    """Stop the guild player"""
+
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    await player.stop()
+
+    await ctx.respond(embed=hikari.Embed(
+        description = '⏹️ Stopped playing',
+        colour = COLOR_DICT['RED']
+    ))
+    logging.info('Player stopped on guild: %s', ctx.guild_id)
+
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, valid_user_voice, player_playing,
+)
+@lightbulb.command('replay', 'Replay current track', auto_defer=True)
+@lightbulb.implements(lightbulb.SlashCommand)
+async def replay(ctx : lightbulb.Context) -> None:
+    """Replay current track"""
+
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    if not player.current.is_seekable:
+        await ctx.respond('⚠️ Current track is not seekable!')
+        return
+    await player.seek(0)
+
+    await ctx.respond(embed=hikari.Embed(
+        description = '⏩ Track replayed!',
+        colour = COLOR_DICT['BLUE']
+    ))
+
+
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
@@ -250,7 +252,7 @@ async def resume(ctx: lightbulb.Context) -> None:
 @lightbulb.command('seek', "Seeks to a given position in the track", auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def seek(ctx : lightbulb.Context) -> None:
-    """Seeks to a position of a track"""
+    """Seek to a position in a track"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     if not player.current.is_seekable:
@@ -264,7 +266,7 @@ async def seek(ctx : lightbulb.Context) -> None:
         await ctx.respond('⚠️ Invalid position!')
         return
     
-    [minute, second] = [int(x) for x in pos.split(':')]
+    (minute, second) = (int(x) for x in pos.split(':'))
     ms = minute * 60 * 1000 + second * 1000
     await player.seek(ms)
 
@@ -278,61 +280,11 @@ async def seek(ctx : lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('replay', 'Replay track', auto_defer=True)
-@lightbulb.implements(lightbulb.SlashCommand)
-async def replay(ctx : lightbulb.Context) -> None:
-    """Replay track from the start"""
-
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    if not player.current.is_seekable:
-        await ctx.respond('⚠️ Current track is not seekable!')
-        return
-    await player.seek(0)
-
-    await ctx.respond(embed=hikari.Embed(
-        description = f'⏩ Track replayed!',
-        colour = COLOR_DICT['BLUE']
-    ))
-
-@plugin.command()
-@lightbulb.add_checks(
-    lightbulb.guild_only, player_playing,
-)
-@lightbulb.command('queue', 'Shows the next 10 songs in the queue', auto_defer=True)
-@lightbulb.implements(lightbulb.SlashCommand)
-async def queue(ctx : lightbulb.Context) -> None:
-    """Current queue"""
-
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    
-    autoplay_str = 'enabled' if player.is_autoplay else 'disabled'
-    queue_description = f'**Current:** [{player.current.title}]({player.current.uri}) - <@!{player.current.requester}>' +'\n'
-    queue_description += player_bar(player) 
-
-    for i in range(min(len(player.queue), 10)):
-        if i == 0:
-            queue_description += '\n' + '**Up next:**'
-        track = player.queue[i]
-        queue_description = queue_description + '\n' + f'{i + 1}. [{track.title}]({track.uri}) `{format_time(track.duration)}` <@!{track.requester}>'
-
-    await ctx.respond(embed=hikari.Embed(
-        title = f'🎵 Queue',
-        description = queue_description,
-        colour = COLOR_DICT['GREEN']
-    ).set_footer(
-        text=f'🎲 Autoplay: {autoplay_str}'
-    ))
-
-
-@plugin.command()
-@lightbulb.add_checks(
-    lightbulb.guild_only, valid_user_voice, player_playing,
-)
 @lightbulb.option('mode', 'Loop mode', choices=['track', 'queue', 'end'], required=False, default='track')
-@lightbulb.command('loop', 'Loops current track or queue or ends loops', auto_defer=True)
+@lightbulb.command('loop', 'Loop current track or queue or end loop', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def loop(ctx:lightbulb.Context) -> None:
-    """Loop player by track or queue"""
+    """Loop current track or queue or end loop"""
 
     mode = ctx.options.mode
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
@@ -373,28 +325,52 @@ async def shuffle(ctx:lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(
-    lightbulb.guild_only, valid_user_voice, player_playing,
+    lightbulb.guild_only, player_playing
 )
-@lightbulb.command('autoplay', 'Enable/disable autoplay', auto_defer=True)
+@lightbulb.command('now', 'Display current track', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
-async def autoplay(ctx:lightbulb.Context) -> None:
-    """Enable/disable autoplay"""
+async def now(ctx: lightbulb.Context) -> None:
+    """Display current track"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
 
-    if player.is_autoplay:
-        player.is_autoplay = False
-        player.autoqueue.clear()
-    else:
-        player.is_autoplay = True
-        result = await plugin.bot.d.lavalink.get_tracks(query=f'getrec:{player.current.title}', check_local=True)
-        player.add_autoqueue(result.tracks) if result.load_type == 'PLAYLIST_LOADED' else None
+    desc = f'[{player.current.title}]({player.current.uri})'
+    desc += '\n' + player_bar(player)
+    desc += f'Requested - <@!{player.current.requester}>'
+
+    await ctx.respond(
+        embed=hikari.Embed(
+            title = '🎵 Now Playing',
+            description=desc, color=COLOR_DICT['GREEN']
+        ).set_thumbnail(player.current.artwork_url))
+
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, player_playing,
+)
+@lightbulb.command('queue', 'Display the next 10 tracks in queue', auto_defer=True)
+@lightbulb.implements(lightbulb.SlashCommand)
+async def queue(ctx : lightbulb.Context) -> None:
+    """Display next (max 10) tracks in queue"""
+
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+    
+    desc = f'**Current:** [{player.current.title}]({player.current.uri})'
+    desc += '\n' + player_bar(player)
+    desc += f'Requested - <@!{player.current.requester}>' + '\n'
+
+    for i in range(min(len(player.queue), 10)):
+        if i == 0:
+            desc += '\n' + '**Up next:**'
+        track = player.queue[i]
+        desc += '\n' + '{0}. [{1}]({2}) `{3}` <@!{4}>'.format(
+            i+1, track.title, track.uri, format_time(track.duration), track.requester)
 
     await ctx.respond(embed=hikari.Embed(
-        description = f'🎲 {("Autoplay enabled" if player.is_autoplay else "Autoplay disabled")}',
-        colour = COLOR_DICT['BLUE']
-    ))
-    
+        title = '🎵 Queue',
+        description = desc,
+        colour = COLOR_DICT['GREEN']))
 
 @plugin.command()
 @lightbulb.add_checks(
@@ -408,39 +384,34 @@ async def search(ctx: lightbulb.Context) -> None:
     query = ctx.options.query
 
     result = await _search(lavalink=plugin.bot.d.lavalink, query=query)
-    if result.load_type != 'SEARCH_RESULT':
+    if result.load_type != LoadType.SEARCH:
         await ctx.respond('⚠️ Failed to load search result for query!', delete_after=30)
         return
 
-    view = miru.View(timeout=60)
     options = [f'{i + 1}. {track.title[:55]}' for i, track in enumerate(result.tracks[:20])]
-    options = [miru.SelectOption(label=option) for option in options]
-    
-    view.add_item(CustomTextSelect(options=options, placeholder='Select track to play'))
-    view.add_item(RemoveButton(style=hikari.ButtonStyle.SECONDARY, emoji='❌'))
+    view = TrackSelectView(select_options=options, timeout=60)
+    view.build_track_select(placeholder='Select track to play')
 
     message = await ctx.respond(
         components=view,
-        delete_after=60,
         embed=hikari.Embed(
             color=COLOR_DICT['GREEN'],
             description=f'🔍 **Search results for:** `{query}`',
         ),)
     
     await view.start(message)
-    await view.wait()  # Wait until the view is stopped or times out
+    await view.wait()
 
-    if not hasattr(view, 'choice'):  # remove btn is pressed or message timeout
+    if (choice := view.get_choice()) == -1:
         await message.delete()
         return
-        
-    result.load_type = lavalink.LoadType.TRACK
-    result.tracks = [result.tracks[int(view.choice.split('.')[0]) - 1]]
+    
+    result.load_type = LoadType.TRACK
+    result.tracks = [result.tracks[choice - 1]]
 
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
-        author_id=ctx.author.id, textchannel=ctx.channel_id,
-    )
+        author_id=ctx.author.id, textchannel=ctx.channel_id,)
     await message.edit(embed=embed, components=None)
 
 
@@ -451,28 +422,26 @@ async def search(ctx: lightbulb.Context) -> None:
 @lightbulb.command('remove', 'Remove a track from queue', auto_defer = True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def remove(ctx: lightbulb.Context) -> None:
+    """Remove a track from queue"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     if not player.queue:
         await ctx.respond('⚠️ Queue is emtpy!')
         return
     
-    view = miru.View()
     options = [f'{i + 1}. {track.title[:55]}' for i, track in enumerate(player.queue[:20])]
-    options = [miru.SelectOption(label=option) for option in options]
-    
-    view.add_item(CustomTextSelect(options=options, placeholder='Select track to remove'))
-    view.add_item(RemoveButton(style=hikari.ButtonStyle.SECONDARY, emoji='❌'))
+    view = TrackSelectView(select_options=options, timeout=60)
+    view.build_track_select(placeholder='Select track to remove')
 
     message = await ctx.respond(components=view)
     await view.start(message)
     await view.wait()
     
-    if not hasattr(view, 'choice'):  
+    if (choice := view.get_choice()) == -1:
         await message.delete()
         return
         
-    popped_track = player.queue.pop(int(view.choice.split('.')[0]) - 1)
+    popped_track = player.queue.pop(choice - 1)
     await message.edit(
         components=None,
         embed=hikari.Embed(
@@ -495,8 +464,8 @@ async def player(ctx: lightbulb.Context) -> None:
         await ctx.respond('⚠️ Player is not playing!')
         return
 
-    desc = f'**Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
-    desc += player_bar(player)
+    desc = f'**Streaming:** [{player.current.title}]({player.current.uri})'
+    desc += '\n' + player_bar(player)
     desc += f'Requested - <@!{player.current.requester}>'
 
     view = PlayerView()
@@ -504,10 +473,8 @@ async def player(ctx: lightbulb.Context) -> None:
     message = await ctx.respond(
         components=view,
         embed=hikari.Embed(
-            description=desc,
-            color=COLOR_DICT['GREEN']
-        ).set_thumbnail(player.current.artwork_url)
-    )
+            description=desc, color=COLOR_DICT['GREEN']
+        ).set_thumbnail(player.current.artwork_url))
 
     await view.start(message)  # Start listening for interactions
     await view.wait()
@@ -548,8 +515,7 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
 
     if not bot_voice_state or cur_state.user_id == bot_id:
         if not bot_voice_state and cur_state.user_id == bot_id:  # bot is disconnected
-            player.clear_player()
-            # await plugin.bot.update_presence(activity=None) # clear presence
+            player.clear()
             logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
         return
     
@@ -559,18 +525,17 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
             return
 
     states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
-    
-    # count users in channel with bot
-    cnt_user = len([state[0] for state in filter(lambda i: i[1].channel_id == bot_voice_state.channel_id, states)])
+    cnt_user = len([state[0] for state in filter(lambda i: i[1].channel_id == bot_voice_state.channel_id, states)])  # count users in channel with bot
 
     if cnt_user == 1:  # only bot left in voice
         await plugin.bot.update_voice_state(cur_state.guild_id, None)
         return
-
-    if cnt_user > 2:  # not just bot & lone user -> resume player (TODO: doesn't resume if bot is not autopaused)
-        if player and player.paused:
-            await player.set_pause(False)
-        return
+    
+    # TODO: doesn't resume if bot is not autopaused
+    # if cnt_user > 2:  # not just bot & lone user -> resume player 
+    #     if player and player.paused:
+    #         await player.set_pause(False)
+    #     return
     
     # resume player when user undeafens
     if prev_state.is_self_deafened and not cur_state.is_self_deafened:
@@ -588,7 +553,7 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
 
 # TODO: handle mutliple checks failed 
 @plugin.set_error_handler
-async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
+async def plugin_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
 
     exception = event.exception
     if isinstance(exception, lightbulb.OnlyInGuild):

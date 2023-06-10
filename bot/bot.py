@@ -1,5 +1,4 @@
 import os
-import hikari
 from hikari import Intents
 import lightbulb
 import miru
@@ -17,14 +16,6 @@ bot = lightbulb.BotApp(
 bot.load_extensions_from('./bot/extensions', must_exist=True)
 
 def run() -> None:
-    miru.install(bot) # Load miru and attach it to the bot instance.
+    miru.install(bot)
     bot.run()
 
-async def remove_command(guild_id=hikari.UNDEFINED):
-    
-    rest = hikari.RESTApp()
-    await rest.start()
-    
-    client = rest.acquire(os.environ['TOKEN'], hikari.TokenType.BOT)
-    application = await client.fetch_application()
-    await client.set_application_commands(application.id, (), guild=guild_id)
