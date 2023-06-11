@@ -1,8 +1,8 @@
 import random
+import typing as t
 from lavalink import (DefaultPlayer, AudioTrack, DeferredAudioTrack,
                     QueueEndEvent, TrackLoadFailedEvent,TrackStartEvent,
                     TrackLoadFailedEvent, LoadError, InvalidTrack)
-from typing import Optional, Union, List, Dict
 
 class CustomPlayer(DefaultPlayer):
     
@@ -10,12 +10,18 @@ class CustomPlayer(DefaultPlayer):
         super().__init__(guild_id, node)
         
         self.text_id: int = None
+        self.recently_played : t.List[AudioTrack] = []
     
     def clear(self):
         """Clear all existing configs, clear queue"""
 
-        self.loop, self.current, self.shuffle = 0, None, False
+        self.loop, self.shuffle  = 0, False
+        self.current, self.previous = None, None
         self.queue.clear()
+        self.recently_played.clear()
+
+    def set_text_id(self, text_id: int):
+        self.text_id = text_id
 
     async def play(self, track=None, start_time=0, end_time=None,
                    no_replace=False, volume=None, pause=False, **kwargs):
@@ -76,29 +82,27 @@ class CustomPlayer(DefaultPlayer):
         await self.play_track(playable_track, start_time, end_time, no_replace, volume, pause, **kwargs)
         await self.client._dispatch_event(TrackStartEvent(self, track))
 
+    async def play_previous(self):
+
+        if not self.recently_played or self.current.is_seekable and self.position > 3000:
+            await self.seek(0)
+            return
+        
+        previous: AudioTrack = self.recently_played.pop()
+        curr_requester = self.current.extra.get('requester', 0)
+
+        self.add(track=self.current, index=0, requester=curr_requester)
+        self.add(track=previous, index=0, requester=0)
+        await self.play()
+
     async def skip(self):
 
-        curtrack = self.current
+        current = self.current
         await self.play()
-        return curtrack
+        return current
             
     async def stop(self):
         
         await self.node.update_player(self._internal_id, encoded_track=None)
-        self.current = None
         self.clear()
     
-    def add(self, track: Union[AudioTrack, DeferredAudioTrack, Dict], requester: int = 0, index: int = -1):
-    
-        at = track
-
-        if isinstance(track, dict):
-            at = AudioTrack(track, requester)
-
-        if requester != 0:
-            at.requester = requester
-
-        if index == -1:
-            self.queue.append(at)
-        else:
-            self.queue.insert(index, at)

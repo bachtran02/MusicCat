@@ -17,7 +17,8 @@ class PlayerView(miru.View):
 
         if not player.current:
             return hikari.Embed(
-                description='Queue is empty! Play some music 🎶',
+                title='Nothing to play!',
+                description='Play some music 🎶',
                 color=COLOR_DICT['YELLOW']
             )
         desc = f'🎶 **Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
@@ -32,6 +33,8 @@ class PlayerView(miru.View):
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏮️')
     async def previous(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         player = self.get_player(ctx.guild_id)
+        await player.play_previous()
+        await ctx.edit_response(embed=self.get_player_embed(player))
 
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏯️')
     async def playpause(self, button: miru.Button, ctx: miru.ViewContext) -> None:
