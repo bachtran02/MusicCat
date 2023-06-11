@@ -49,7 +49,7 @@ async def _search(lavalink: lavalink.Client, source: str = None, client = None, 
         
 
 async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
-        textchannel: int = 0, loop: bool = False, shuffle: bool = False, index: int = -1
+        text_id: int = 0, loop: bool = False, shuffle: bool = False, index: int = None
         ) -> hikari.Embed:
     
     assert result is not None
@@ -67,6 +67,7 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
     description = None
     if result.load_type in [LoadType.TRACK, LoadType.SEARCH]:
         track = result.tracks[0]
+        track.extra['requester'] = author_id
         player.add(requester=author_id, track=track, index=index)
         player.set_loop(1) if loop else None
         description = f'[{track.title}]({track.uri}) added to queue <@{author_id}>'
@@ -78,14 +79,15 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         playlist_url = tracks[0].extra.get('playlist_url', None)
         while tracks:
             pop_at = randrange(len(tracks)) if shuffle else 0
-            player.add(requester=author_id, track=tracks.pop(pop_at))
+            track = tracks.pop(pop_at)
+            track.extra['requester'] = author_id
+            player.add(requester=author_id, track=track)
 
         player.set_loop(2) if loop else None
         description = f'Playlist [{result.playlist_info.name}]({playlist_url})' \
             f' - {playlist_len} tracks added to queue <@{author_id}>'
 
-    player.textchannel_id = textchannel
-    
+    player.set_text_id(text_id)
     if not player.is_playing:
         await player.play()
 
