@@ -23,7 +23,7 @@ async def chill(ctx: lightbulb.Context) -> None:
     )
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
-        author_id=ctx.author.id, textchannel=ctx.channel_id,
+        author_id=ctx.author.id, text_id=ctx.channel_id,
     )
     await ctx.respond(embed=embed, delete_after=30)
 
