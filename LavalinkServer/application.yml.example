@@ -15,8 +15,8 @@ plugins:
         deezer: false # Enable Deezer source
         yandexmusic: false # Enable Yandex Music source
       spotify:
-        clientId: ""
-        clientSecret: ""
+        clientId: "{spotify client id}"
+        clientSecret: "{spotify client secret}"
         countryCode: "US" # the country code you want to use for filtering the artists top tracks. See https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
         playlistLoadLimit: 6 # The number of pages at 100 tracks each
         albumLoadLimit: 6 # The number of pages at 50 tracks each
@@ -25,7 +25,7 @@ lavalink:
     - dependency: "com.github.TopiSenpai.LavaSrc:lavasrc-plugin:90d549e"
       repository: "https://maven.topi.wtf/snapshots"
   server:
-    password: "youshallnotpass"
+    password: "youshallnotpass"  # default password
     sources:
       youtube: true
       bandcamp: true
