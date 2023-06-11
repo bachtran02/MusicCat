@@ -12,7 +12,7 @@ services:
       - LAVALINK_SERVER_PASSWORD=youshallnotpass 
     volumes:
       - ./LavalinkServer/logs:/logs
-      - ./LavalinkServer/application.yaml:/opt/Lavalink/application.yml
+      - ./LavalinkServer/application.yml:/opt/Lavalink/application.yml
     expose:
       - 2333
     ports:
