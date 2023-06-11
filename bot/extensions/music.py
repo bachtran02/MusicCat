@@ -16,7 +16,7 @@ from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
 from bot.components import PlayerView, TrackSelectView
 
-from bot.sources.custom_sources import lnchillSource
+from bot.custom_sources import lnchillSource
 
 plugin = lightbulb.Plugin('Music', 'Basic music commands')
 
@@ -28,17 +28,13 @@ class EventHandler:
 
         player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
         track = player.current
-        
-        # # TODO: still create message on first play
-        # if player.loop == player.LOOP_SINGLE:
-        #     return
 
         description  = '[{0}]({1})\n Requested - <@{2}>\n'.format(
             track.title, track.uri, track.requester)
 
         try:
             await plugin.bot.rest.create_message(
-                channel=player.textchannel_id,
+                channel=player.text_id,
                 embed=hikari.Embed(
                     title='🎶 **Now playing**',
                     description = description,
@@ -54,11 +50,17 @@ class EventHandler:
 
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):
+
+        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+
+        if not player.queue or event.track.identifier != player.queue[0].identifier:
+            player.recently_played.append(event.track)
+
         logging.info('Track finished on guild: %s', event.player.guild_id)
 
     @lavalink.listener(lavalink.QueueEndEvent)
     async def queue_finish(self, event: lavalink.QueueEndEvent):
-        # player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
+        
         logging.info('Queue finished on guild: %s', event.player.guild_id)
         
     @lavalink.listener(lavalink.TrackExceptionEvent)
@@ -79,7 +81,7 @@ async def on_ready(event: hikari.ShardReadyEvent) -> None:
     
     for node in nodes:
         client.add_node(
-            host='localhost', port=2334,
+            host='localhost', port=2333,
             password=os.environ['LAVALINK_PASS'],
             region=node['region'], name=node['name'],
         )
@@ -106,12 +108,12 @@ async def play(ctx: lightbulb.Context) -> None:
     """Play track URL or search query on YouTube"""
 
     query = ctx.options.query
-    index = 0 if ctx.options.next == 'True' else -1 
+    index = 0 if ctx.options.next == 'True' else None 
     
     result: lavalink.LoadResult = await _search(lavalink=plugin.bot.d.lavalink, query=query)
     embed = await _play(
         bot=plugin.bot, guild_id=ctx.guild_id, author_id=ctx.author.id,
-        result=result, textchannel=ctx.channel_id, loop=(ctx.options.loop == 'True'),
+        result=result, text_id=ctx.channel_id, loop=(ctx.options.loop == 'True'),
         index=index, shuffle=(ctx.options.shuffle == 'True'),)
     if not embed:
         await ctx.respond('⚠️ No result for query!')
@@ -411,7 +413,7 @@ async def search(ctx: lightbulb.Context) -> None:
 
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
-        author_id=ctx.author.id, textchannel=ctx.channel_id,)
+        author_id=ctx.author.id, text_id=ctx.channel_id,)
     await message.edit(embed=embed, components=None)
 
 
@@ -454,7 +456,7 @@ async def remove(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only,
 )
-@lightbulb.command('player', 'interactive guild music player', auto_defer=True)
+@lightbulb.command('player', 'Interactive guild music player', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def player(ctx: lightbulb.Context) -> None:
     """Interactive guild music player"""
