@@ -1,6 +1,4 @@
-import os
 import re
-import random
 import logging
 
 import lavalink
@@ -8,90 +6,15 @@ from lavalink import LoadType
 import hikari
 import lightbulb
 
-from bot.library.player import CustomPlayer
-from bot.logger.custom_logger import track_logger
 from bot.impl import _join, _play, _search
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
+from bot.library.player import CustomPlayer
 from bot.components import PlayerView, TrackSelectView
-
-from bot.custom_sources import lnchillSource
 
 plugin = lightbulb.Plugin('Music', 'Basic music commands')
 
-class EventHandler:
-    """Events from the Lavalink server"""
-    
-    @lavalink.listener(lavalink.TrackStartEvent)
-    async def track_start(self, event: lavalink.TrackStartEvent):
-
-        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-        track = player.current
-
-        description  = '[{0}]({1})\n Requested - <@{2}>\n'.format(
-            track.title, track.uri, track.requester)
-
-        try:
-            await plugin.bot.rest.create_message(
-                channel=player.text_id,
-                embed=hikari.Embed(
-                    title='🎶 **Now playing**',
-                    description = description,
-                    colour = COLOR_DICT['GREEN'],
-                    
-                ).set_thumbnail(track.artwork_url)
-            )
-        except Exception as error:
-            logging.error('Failed to send message on track start due to: %s', error)
-
-        track_logger.info('%s - %s - %s', track.title, track.author, track.uri)
-        logging.info('Track started on guild: %s', event.player.guild_id)
-
-    @lavalink.listener(lavalink.TrackEndEvent)
-    async def track_end(self, event: lavalink.TrackEndEvent):
-
-        player = plugin.bot.d.lavalink.player_manager.get(event.player.guild_id)
-
-        if not player.queue or event.track.identifier != player.queue[0].identifier:
-            player.recently_played.append(event.track)
-
-        logging.info('Track finished on guild: %s', event.player.guild_id)
-
-    @lavalink.listener(lavalink.QueueEndEvent)
-    async def queue_finish(self, event: lavalink.QueueEndEvent):
-        
-        logging.info('Queue finished on guild: %s', event.player.guild_id)
-        
-    @lavalink.listener(lavalink.TrackExceptionEvent)
-    async def track_exception(self, event: lavalink.TrackExceptionEvent):
-        logging.warning('Track exception event happened on guild: %s', event.player.guild_id)
-
-
-@plugin.listener(hikari.ShardReadyEvent)
-async def on_ready(event: hikari.ShardReadyEvent) -> None:
-
-    nodes = [
-        {'name': 'default-node',  'region': 'us-west'},
-        {'name': 'backup-node', 'region': 'us'}
-    ]
-    sources = [  lnchillSource(token=os.environ['YOUTUBE_API_KEY']),  ]
-
-    client = lavalink.Client(user_id=plugin.bot.get_me().id, player=CustomPlayer)
-    
-    for node in nodes:
-        client.add_node(
-            host='localhost', port=2333,
-            password=os.environ['LAVALINK_PASS'],
-            region=node['region'], name=node['name'],
-        )
-    for source in sources:
-        client.register_source(source)
-        logging.info('Registred \'%s\' as source', source.name)
-
-    client.add_event_hooks(EventHandler())
-    plugin.bot.d.lavalink = client
-    
 
 @plugin.command()
 @lightbulb.add_checks(
