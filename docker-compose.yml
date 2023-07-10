@@ -11,8 +11,9 @@ services:
       - SERVER_PORT=2333
       - LAVALINK_SERVER_PASSWORD=youshallnotpass 
     volumes:
-      - ./LavalinkServer/logs:/logs
-      - ./LavalinkServer/application.yaml:/opt/Lavalink/application.yml
+      - ./LavalinkServer/logs/:/opt/Lavalink/logs/  # run `sudo chown -R 322:322 logs`
+      - ./LavalinkServer/plugins/:/opt/Lavalink/plugins/  # run `sudo chown -R 322:322 plugins`
+      - ./LavalinkServer/application.yml:/opt/Lavalink/application.yml
     expose:
       - 2333
     ports:

@@ -2,8 +2,9 @@
 .cache
 __pycache__/
 .idea/
-LavalinkServer/Lavalink.jar
-LavalinkServer/logs/
+/LavalinkServer/Lavalink.jar
+/LavalinkServer/application.yml
+plugins/
 store/
 config/
 .venv/
@@ -11,3 +12,4 @@ logs/
 devscripts/
 test.py
 run.sh
+/assets/

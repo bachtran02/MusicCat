@@ -1,45 +1,30 @@
 import random
+import typing as t
 from lavalink import (DefaultPlayer, AudioTrack, DeferredAudioTrack,
                     QueueEndEvent, TrackLoadFailedEvent,TrackStartEvent,
                     TrackLoadFailedEvent, LoadError, InvalidTrack)
-from typing import Optional, Union, List, Dict
 
 class CustomPlayer(DefaultPlayer):
     
     def __init__(self, guild_id: int, node: 'Node'):
         super().__init__(guild_id, node)
-
-        self.is_autoplay: bool = False
-        self.textchannel_id: int = None 
-        self.autoqueue: List[AudioTrack] = []
-
-    def clear_player(self):
+        
+        self.text_id: int = None
+        self.recently_played : t.List[AudioTrack] = []
+    
+    def clear(self):
         """Clear all existing configs, clear queue"""
 
-        [self.loop, self.current, self.shuffle, self.is_autoplay] = [0, None, False, False]
-        # clear all queues  
+        self.loop, self.shuffle  = 0, False
+        self.current, self.previous = None, None
         self.queue.clear()
-        self.autoqueue.clear()
+        self.recently_played.clear()
 
-    def add_autoqueue(self, related_tracks: List[AudioTrack]):
+    def set_text_id(self, text_id: int):
+        self.text_id = text_id
 
-        for track in related_tracks:
-            self.autoqueue.append(track)
-
-    async def autoplay(self) -> Optional[AudioTrack]:
-
-        if not (self.is_autoplay and self.autoqueue):
-            return None
-    
-        popat = random.randrange(len(self.autoqueue))
-        track = self.autoqueue.pop(popat)
-
-        await self.play(track)
-        return self.current
-
-    async def play(self, track: Optional[Union[AudioTrack, DeferredAudioTrack, Dict]] = None, start_time: Optional[int] = 0,
-                   end_time: Optional[int] = None, no_replace: Optional[bool] = False, volume: Optional[int] = None,
-                   pause: Optional[bool] = False, **kwargs):
+    async def play(self, track=None, start_time=0, end_time=None,
+                   no_replace=False, volume=None, pause=False, **kwargs):
 
         if no_replace and self.is_playing:
             return
@@ -97,29 +82,27 @@ class CustomPlayer(DefaultPlayer):
         await self.play_track(playable_track, start_time, end_time, no_replace, volume, pause, **kwargs)
         await self.client._dispatch_event(TrackStartEvent(self, track))
 
+    async def play_previous(self):
+
+        if not self.recently_played or self.current.is_seekable and self.position > 3000:
+            await self.seek(0)
+            return
+        
+        previous: AudioTrack = self.recently_played.pop()
+        curr_requester = self.current.extra.get('requester', 0)
+
+        self.add(track=self.current, index=0, requester=curr_requester)
+        self.add(track=previous, index=0, requester=0)
+        await self.play()
+
     async def skip(self):
 
-        curtrack = self.current
+        current = self.current
         await self.play()
-        return curtrack
+        return current
             
     async def stop(self):
         
         await self.node.update_player(self._internal_id, encoded_track=None)
-        self.current = None
-        self.clear_player()
+        self.clear()
     
-    def add(self, track: Union[AudioTrack, DeferredAudioTrack, Dict], requester: int = 0, index: int = -1):
-    
-        at = track
-
-        if isinstance(track, dict):
-            at = AudioTrack(track, requester)
-
-        if requester != 0:
-            at.requester = requester
-
-        if index == -1:
-            self.queue.append(at)
-        else:
-            self.queue.insert(index, at)

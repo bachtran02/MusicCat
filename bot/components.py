@@ -17,7 +17,8 @@ class PlayerView(miru.View):
 
         if not player.current:
             return hikari.Embed(
-                description='Queue is empty! Play some music 🎶',
+                title='Nothing to play!',
+                description='Play some music 🎶',
                 color=COLOR_DICT['YELLOW']
             )
         desc = f'🎶 **Streaming:** [{player.current.title}]({player.current.uri})' +'\n'
@@ -32,6 +33,8 @@ class PlayerView(miru.View):
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏮️')
     async def previous(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         player = self.get_player(ctx.guild_id)
+        await player.play_previous()
+        await ctx.edit_response(embed=self.get_player_embed(player))
 
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏯️')
     async def playpause(self, button: miru.Button, ctx: miru.ViewContext) -> None:
@@ -43,7 +46,6 @@ class PlayerView(miru.View):
     async def stop(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         player = self.get_player(ctx.guild_id)
         await player.stop()
-        await self.bot.update_presence(activity=None) # clear presence
         await ctx.edit_response(embed=self.get_player_embed(player))
 
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏭️')
@@ -57,7 +59,7 @@ class PlayerView(miru.View):
         await ctx.message.delete()
         self.stop()
 
-class CustomTextSelect(miru.TextSelect):
+class TextSelect(miru.TextSelect):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
     
@@ -71,3 +73,21 @@ class RemoveButton(miru.Button):
 
     async def callback(self, ctx: miru.ViewContext) -> None:
         self.view.stop()
+
+class TrackSelectView(miru.View):
+    def __init__(self, *args, select_options: str = [], **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.select_options = select_options
+
+    @staticmethod
+    def build_select_options(options: t.List[str]):
+        return [miru.SelectOption(label=option) for option in options]
+    
+    def build_track_select(self, placeholder: str = None):
+        self.add_item(TextSelect(options=self.build_select_options(self.select_options), placeholder=placeholder))
+        self.add_item(RemoveButton(style=hikari.ButtonStyle.SECONDARY, emoji='❌'))
+
+    def get_choice(self):
+        if not hasattr(self, 'choice'):  
+            return -1
+        return int(self.choice.split('.')[0])
