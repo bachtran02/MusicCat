@@ -5,6 +5,7 @@ import lavalink
 import lightbulb
 import logging
 
+from bot.nodes import LAVALINK_NODES
 from bot.event_handler import EventHandler
 from bot.custom_sources import lnchillSource
 from bot.library.player import CustomPlayer
@@ -23,17 +24,13 @@ bot.load_extensions_from('./bot/extensions', must_exist=True)
 # on bot bot ready, add lavalink node to datastore
 @bot.listen(hikari.StartedEvent)
 async def on_started_event(event: hikari.StartedEvent) -> None:
-    nodes = [
-            {'name': 'default-node',  'region': 'us-west'},
-            {'name': 'backup-node', 'region': 'us'}
-        ]
+    
     sources = [  lnchillSource(token=os.environ['YOUTUBE_API_KEY']),  ]
-
     client = lavalink.Client(user_id=bot.get_me().id, player=CustomPlayer)
     
-    for node in nodes:
+    for node in LAVALINK_NODES:
         client.add_node(
-            host='localhost', port=2333,
+            host='lavalink', port=2333,  # use host='localhost' if bot is not run on docker
             password=os.environ['LAVALINK_PASS'],
             region=node['region'], name=node['name'],
         )
@@ -47,4 +44,3 @@ async def on_started_event(event: hikari.StartedEvent) -> None:
 def run() -> None:
     miru.install(bot)
     bot.run()
-
