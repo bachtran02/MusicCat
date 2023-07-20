@@ -423,7 +423,6 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     prev_state = event.old_state
     cur_state = event.state
 
-    # send event update to lavalink server
     await plugin.bot.d.lavalink.voice_update_handler({
         't': 'VOICE_STATE_UPDATE',
         'd': {
@@ -452,15 +451,11 @@ async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
     states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
     cnt_user = len([state[0] for state in filter(lambda i: i[1].channel_id == bot_voice_state.channel_id, states)])  # count users in channel with bot
 
-    if cnt_user == 1:  # only bot left in voice
-        await plugin.bot.update_voice_state(cur_state.guild_id, None)
-        return
-    
     # TODO: doesn't resume if bot is not autopaused
-    # if cnt_user > 2:  # not just bot & lone user -> resume player 
-    #     if player and player.paused:
-    #         await player.set_pause(False)
-    #     return
+    if cnt_user != 2:  
+        if cnt_user == 1:
+            await plugin.bot.update_voice_state(cur_state.guild_id, None)
+        return
     
     # resume player when user undeafens
     if prev_state.is_self_deafened and not cur_state.is_self_deafened:
