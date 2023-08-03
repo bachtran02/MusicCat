@@ -32,7 +32,7 @@ async def on_started_event(event: hikari.StartedEvent) -> None:
         client.add_node(
             host='lavalink', port=2333,  # use host='localhost' if bot is not run on docker
             password=os.environ['LAVALINK_PASS'],
-            region=node['region'], name=node['name'],
+            region=node.get('region'), name=node['name'],
         )
     for source in sources:
         client.register_source(source)
