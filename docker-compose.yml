@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:v4
+    image: ghcr.io/lavalink-devs/lavalink:4.0.0-beta.3
     container_name: lavalink
     restart: always
     # entrypoint: ["java", "-Djdk.tls.client.protocols=TLSv1.1,TLSv1.2", "-Xmx6G", "-jar", "Lavalink.jar"]
