@@ -28,5 +28,5 @@ services:
       - lavalink
     volumes:
       - ./logs:/logs
-    restart: always
+    restart: unless-stopped
     

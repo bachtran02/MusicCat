@@ -337,7 +337,7 @@ async def search(ctx: lightbulb.Context) -> None:
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
         author_id=ctx.author.id, text_id=ctx.channel_id,)
-    await message.edit(embed=embed, components=None)
+    await message.edit(embed=embed, components=None, delete_after=30)
 
 
 @plugin.command()
