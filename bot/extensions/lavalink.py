@@ -7,7 +7,7 @@ from bot.constants import COLOR_DICT
 plugin = lightbulb.Plugin('Lavalink', 'Lavalink info')
 
 @plugin.command()
-# @lightbulb.add_checks(lightbulb.owner_only)
+@lightbulb.add_checks(lightbulb.owner_only)
 @lightbulb.command('stats', 'Display lavalink stats.', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def stats(ctx: lightbulb.Context) -> None:
@@ -36,7 +36,7 @@ async def stats(ctx: lightbulb.Context) -> None:
 
 
 @plugin.command()
-# @lightbulb.add_checks(lightbulb.owner_only)
+@lightbulb.add_checks(lightbulb.owner_only)
 @lightbulb.command('info', 'Display lavalink info.', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def info(ctx: lightbulb.Context) -> None:
