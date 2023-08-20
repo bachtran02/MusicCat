@@ -1,5 +1,6 @@
 import re
 import logging
+import asyncio
 
 import lavalink
 from lavalink import LoadType
@@ -21,7 +22,6 @@ plugin = lightbulb.Plugin('Music', 'Basic music commands')
     lightbulb.guild_only, valid_user_voice,
 )
 @lightbulb.option('query', 'Search query for track', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
-# @lightbulb.option('autoplay', 'Autoplay related track after queue ends', choices=['True', 'False'], required=False, default=None)
 @lightbulb.option('loop', 'Loop track', choices=['True'], required=False, default=False)
 @lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default=False)
 @lightbulb.option('shuffle', 'Shuffle playlist', choices=['True'], required=False, default=False)
@@ -39,7 +39,7 @@ async def play(ctx: lightbulb.Context) -> None:
         result=result, text_id=ctx.channel_id, loop=(ctx.options.loop == 'True'),
         index=index, shuffle=(ctx.options.shuffle == 'True'),)
     if not embed:
-        await ctx.respond('⚠️ No result for query!')
+        await ctx.respond('⚠️ No result for query!', delete_after=30)
     else:
         await ctx.respond(embed=embed, delete_after=30)
 
@@ -322,7 +322,7 @@ async def search(ctx: lightbulb.Context) -> None:
         embed=hikari.Embed(
             color=COLOR_DICT['GREEN'],
             description=f'🔍 **Search results for:** `{query}`',
-        ),)
+        ))
     
     await view.start(message)
     await view.wait()
@@ -337,7 +337,9 @@ async def search(ctx: lightbulb.Context) -> None:
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
         author_id=ctx.author.id, text_id=ctx.channel_id,)
-    await message.edit(embed=embed, components=None, delete_after=30)
+    await message.edit(embed=embed, components=None)
+    await asyncio.sleep(30)
+    await message.delete()
 
 
 @plugin.command()
