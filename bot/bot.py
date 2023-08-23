@@ -41,6 +41,25 @@ async def on_started_event(event: hikari.StartedEvent) -> None:
     client.add_event_hooks(EventHandler(event.app))
     bot.d.lavalink = client
 
+@bot.listen(lightbulb.CommandErrorEvent)
+async def on_error(event: lightbulb.CommandErrorEvent) -> None:
+
+    exception = event.exception
+    error_msg = '⚠️ Error(s)\n'
+
+    if isinstance(exception, lightbulb.CheckFailure):
+        for cause in exception.causes:
+            if isinstance(cause, lightbulb.CheckFailure):
+                error_msg += f'- `{cause}`\n'
+    if isinstance(exception, lightbulb.OnlyInGuild):
+        error_msg += f'- `Cannot invoke Guild only command in DMs`\n'
+    if isinstance(exception, lightbulb.NotOwner):
+        error_msg += f'- `Only bot owner can use this command`\n'
+    else:
+        logging.error(exception)
+
+    await event.context.respond(error_msg)
+
 def run() -> None:
     miru.install(bot)
     bot.run()
