@@ -11,7 +11,7 @@ from bot.impl import _join, _play, _search
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
-from bot.library.player import CustomPlayer
+from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.components import PlayerView, TrackSelectView
 
 plugin = lightbulb.Plugin('Music', 'Basic music commands')
@@ -25,7 +25,7 @@ plugin = lightbulb.Plugin('Music', 'Basic music commands')
 @lightbulb.option('loop', 'Loop track', choices=['True'], required=False, default=False)
 @lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default=False)
 @lightbulb.option('shuffle', 'Shuffle playlist', choices=['True'], required=False, default=False)
-@lightbulb.command('play', 'Play track URL or search query on YouTube', auto_defer = True)
+@lightbulb.command('play', 'Play track URL or search query on YouTube', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
     """Play track URL or search query on YouTube"""
@@ -152,9 +152,9 @@ async def stop(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('replay', 'Replay current track', auto_defer=True)
+@lightbulb.command('restart', 'Restart current track', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
-async def replay(ctx : lightbulb.Context) -> None:
+async def restart(ctx : lightbulb.Context) -> None:
     """Replay current track"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
@@ -164,7 +164,7 @@ async def replay(ctx : lightbulb.Context) -> None:
     await player.seek(0)
 
     await ctx.respond(embed=hikari.Embed(
-        description = '⏩ Track replayed!',
+        description = '⏩ Track restarted!',
         colour = COLOR_DICT['BLUE']
     ))
 
@@ -409,79 +409,11 @@ async def player(ctx: lightbulb.Context) -> None:
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)
 async def voice_server_update(event: hikari.VoiceServerUpdateEvent) -> None:
-
-    await plugin.bot.d.lavalink.voice_update_handler({
-        't': 'VOICE_SERVER_UPDATE',
-        'd': {
-            'guild_id': event.guild_id,
-            'endpoint': event.endpoint[6:],  # get rid of wss://
-            'token': event.token,
-        }
-    })
+    await plugin.bot.d.lavalink._dispatch_event(VoiceServerUpdate(event))
 
 @plugin.listener(hikari.VoiceStateUpdateEvent)
 async def voice_state_update(event: hikari.VoiceStateUpdateEvent) -> None:
-
-    prev_state = event.old_state
-    cur_state = event.state
-
-    await plugin.bot.d.lavalink.voice_update_handler({
-        't': 'VOICE_STATE_UPDATE',
-        'd': {
-            'guild_id': cur_state.guild_id,
-            'user_id': cur_state.user_id,
-            'channel_id': cur_state.channel_id,
-            'session_id': cur_state.session_id,
-        }
-    })
-
-    bot_id = plugin.bot.get_me().id
-    bot_voice_state = plugin.bot.cache.get_voice_state(cur_state.guild_id, bot_id)
-    player: CustomPlayer = plugin.bot.d.lavalink.player_manager.get(cur_state.guild_id)
-
-    if not bot_voice_state or cur_state.user_id == bot_id:
-        if not bot_voice_state and cur_state.user_id == bot_id:  # bot is disconnected
-            player.clear()
-            logging.info('Client disconnected from voice on guild: %s', cur_state.guild_id)
-        return
-    
-    # event occurs in channel not same as bot
-    if not ((prev_state and prev_state.channel_id == bot_voice_state.channel_id) or
-        (cur_state and cur_state.channel_id == bot_voice_state.channel_id)):
-            return
-
-    states = plugin.bot.cache.get_voice_states_view_for_guild(cur_state.guild_id).items()
-    cnt_user = len([state[0] for state in filter(lambda i: i[1].channel_id == bot_voice_state.channel_id, states)])  # count users in channel with bot
-
-    # TODO: doesn't resume if bot is not autopaused
-    if cnt_user != 2:  
-        if cnt_user == 1:
-            await plugin.bot.update_voice_state(cur_state.guild_id, None)
-        return
-    
-    # resume player when user undeafens
-    if prev_state.is_self_deafened and not cur_state.is_self_deafened:
-        if player and player.paused:
-            await player.set_pause(False)
-            logging.info('Track resumed on guild: %s', event.guild_id)
-    
-    # pause player when user deafens
-    if not prev_state.is_self_deafened and cur_state.is_self_deafened:
-        if not player or not player.is_playing:
-            return
-        await player.set_pause(True)
-        logging.info('Track paused on guild: %s', event.guild_id)
-
-
-# TODO: handle mutliple checks failed 
-@plugin.set_error_handler
-async def plugin_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
-
-    exception = event.exception
-    if isinstance(exception, lightbulb.OnlyInGuild):
-        await event.context.respond('⚠️ Cannot invoke Guild only command in DMs')
-    if isinstance(exception, lightbulb.CheckFailure):
-        await event.context.respond(f'⚠️ {exception}')
+    await plugin.bot.d.lavalink._dispatch_event(VoiceStateUpdate(event))
 
 
 def load(bot: lightbulb.BotApp) -> None:
