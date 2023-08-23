@@ -1,4 +1,3 @@
-import urllib.parse
 import lavalink
 import typing as t
 
@@ -70,10 +69,3 @@ def player_bar(player: lavalink.DefaultPlayer):
         bar = progress_bar(player.position/player.current.duration)
 
     return f'{play_emj} {bar} `{playtime}` {loop_emj}{shuffle_emj} \n'
-
-def transform_string(string:str = '', max_length:int = -1):
-    
-    if not string or max_length == -1:
-        return
-    
-    

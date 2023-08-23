@@ -46,9 +46,8 @@ async def info(ctx: lightbulb.Context) -> None:
     if nodes := node_manager.nodes:
         body = ''
         info = await nodes[0].get_info()
-        item_name = ['Version', 'Build Time', 'Git', 'JVM', 'Lavaplayer', 'Source Managers', 'Filters', 'Plugins']
-        for i, item in enumerate(info):
-            body += f'- {item_name[i]}: `{info[item]}`' + '\n'
+        for item in info:
+            body += f'- {item}: `{info[item]}`' + '\n'
     else:
         body = 'No info available' + '\n' 
 
@@ -56,17 +55,6 @@ async def info(ctx: lightbulb.Context) -> None:
         title = '📊 Lavalink Info',
         description = body,
         colour = COLOR_DICT['BLUE']))
-
-@plugin.set_error_handler
-async def foo_error_handler(event: lightbulb.CommandErrorEvent) -> bool:
-    if isinstance(event.exception, lightbulb.CommandInvocationError):
-        await event.context.respond(f'Something went wrong during invocation of command `{event.context.command.name}`.')
-        raise event.exception
-
-    # Unwrap the exception to get the original cause
-    exception = event.exception.__cause__ or event.exception
-    if isinstance(exception, lightbulb.NotOwner):
-        await event.context.respond('Only bot owner can use this command!')
 
 
 def load(bot: lightbulb.BotApp) -> None:
