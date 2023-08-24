@@ -14,37 +14,44 @@ plugins:
         applemusic: false # Enable Apple Music source
         deezer: false # Enable Deezer source
         yandexmusic: false # Enable Yandex Music source
+        flowerytts: true # Enable Flowery TTs source
       spotify:
         clientId: "{spotify client id}"
         clientSecret: "{spotify client secret}"
         countryCode: "US" # the country code you want to use for filtering the artists top tracks. See https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
         playlistLoadLimit: 6 # The number of pages at 100 tracks each
         albumLoadLimit: 6 # The number of pages at 50 tracks each
+      flowerytts:
+        voice: "Arnav"
+        translate: false # whether to translate the text to the native language of voice
+        silence: 0 # the silence parameter is in milliseconds. Range is 0 to 10000. The default is 0.
+        speed: 1.0 # the speed parameter is a float between 0.5 and 10. The default is 1.0. (0.5 is half speed, 2.0 is double speed, etc.)
+        audioFormat: "mp3" # supported formats are: mp3, ogg_opus, ogg_vorbis, aac, wav, and flac. Default format is mp3
 lavalink:
   plugins:
-    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.0.0-beta.3"
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.0.0-beta.4"
       repository: "https://maven.topi.wtf/releases"
   server:
-    password: "youshallnotpass"  # default password
+    password: "youshallnotpass"
     sources:
       youtube: true
-      bandcamp: true
+      bandcamp: false
       soundcloud: true
-      twitch: true
-      vimeo: true
+      twitch: false
+      vimeo: false
       http: true
       local: false
-    filters: # All filters are enabled by default
-      volume: true
+    filters:
+      volume: false
       equalizer: true
-      karaoke: true
+      karaoke: false
       timescale: true
-      tremolo: true
-      vibrato: true
-      distortion: true
-      rotation: true
-      channelMix: true
-      lowPass: true
+      tremolo: false
+      vibrato: false
+      distortion: false
+      rotation: false
+      channelMix: false
+      lowPass: false
     bufferDurationMs: 400 # The duration of the NAS buffer. Higher values fare better against longer GC pauses. Duration <= 0 to disable JDA-NAS. Minimum of 40ms, lower values may introduce pauses.
     frameBufferDurationMs: 5000 # How many milliseconds of audio to keep buffered
     opusEncodingQuality: 10 # Opus encoder quality. Valid values range from 0 to 10, where 10 is best quality but is the most expensive on the CPU.
@@ -73,7 +80,7 @@ lavalink:
 
 metrics:
   prometheus:
-    enabled: false
+    enabled: true
     endpoint: /metrics
 
 sentry:
@@ -85,7 +92,7 @@ sentry:
 
 logging:
   file:
-    path: ./logs/
+    path: ./logs
 
   level:
     root: INFO
