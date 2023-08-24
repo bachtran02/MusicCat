@@ -9,7 +9,7 @@ import lightbulb
 
 from bot.impl import _join, _play, _search
 from bot.checks import valid_user_voice, player_playing, player_connected
-from bot.constants import COLOR_DICT
+from bot.constants import COLOR_DICT, EFFECT_NIGHTCORE, EFFECT_BASS_BOOST
 from bot.utils import format_time, player_bar
 from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.components import PlayerView, TrackSelectView
@@ -23,21 +23,20 @@ plugin = lightbulb.Plugin('Music', 'Basic music commands')
 )
 @lightbulb.option('query', 'Search query for track', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
 @lightbulb.option('loop', 'Loop track', choices=['True'], required=False, default=False)
-@lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default=False)
-@lightbulb.option('shuffle', 'Shuffle playlist', choices=['True'], required=False, default=False)
+@lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default='False')
+@lightbulb.option('shuffle', 'Shuffle playlist', choices=['False'], required=False, default='True')
 @lightbulb.command('play', 'Play track URL or search query on YouTube', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
     """Play track URL or search query on YouTube"""
 
     query = ctx.options.query
-    index = 0 if ctx.options.next == 'True' else None 
     
     result: lavalink.LoadResult = await _search(lavalink=plugin.bot.d.lavalink, query=query)
     embed = await _play(
         bot=plugin.bot, guild_id=ctx.guild_id, author_id=ctx.author.id,
         result=result, text_id=ctx.channel_id, loop=(ctx.options.loop == 'True'),
-        index=index, shuffle=(ctx.options.shuffle == 'True'),)
+        index=0 if ctx.options.next == 'True' else None, shuffle=(ctx.options.shuffle == 'True'),)
     if not embed:
         await ctx.respond('⚠️ No result for query!', delete_after=30)
     else:
@@ -296,6 +295,40 @@ async def queue(ctx : lightbulb.Context) -> None:
         title = '🎵 Queue',
         description = desc,
         colour = COLOR_DICT['GREEN']))
+    
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, player_playing,
+)
+@lightbulb.option('effect', 'Effect to add', choices=['Bass Boost', 'Nightcore', 'None'], required=True)
+@lightbulb.command('effects', 'Add music effect to player', auto_defer=True)
+@lightbulb.implements(lightbulb.SlashCommand)
+async def effects(ctx : lightbulb.Context) -> None:
+    """Add music effect to player"""
+
+    effect = ctx.options.effect
+    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
+
+    equalizer = lavalink.Equalizer()
+    timescale = lavalink.Timescale()
+
+    if effect == 'Bass Boost':
+        equalizer.update(EFFECT_BASS_BOOST['equalizer'])
+    if effect == 'Nightcore':
+        equalizer.update(bands=EFFECT_NIGHTCORE['equalizer']['bands'])
+        timescale.update(
+            pitch=EFFECT_NIGHTCORE['timescale']['pitch'],
+            speed=EFFECT_NIGHTCORE['timescale']['speed'],
+            rate=EFFECT_NIGHTCORE['timescale']['rate'],)
+    if effect == 'None':
+        await player.clear_filters()
+        await ctx.respond(f'Effect cleared')
+        return
+    
+    await player.set_filter(equalizer)
+    await player.set_filter(timescale)
+    await ctx.respond(f'Effect added: `{effect}`')
 
 @plugin.command()
 @lightbulb.add_checks(
