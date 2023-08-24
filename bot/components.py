@@ -57,7 +57,7 @@ class PlayerView(miru.View):
     @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='❌')
     async def remove(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         await ctx.message.delete()
-        self.stop()
+        # self.stop()
 
 class TextSelect(miru.TextSelect):
     def __init__(self, *args, **kwargs) -> None:
