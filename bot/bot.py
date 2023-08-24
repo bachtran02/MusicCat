@@ -51,13 +51,15 @@ async def on_error(event: lightbulb.CommandErrorEvent) -> None:
         for cause in exception.causes:
             if isinstance(cause, lightbulb.CheckFailure):
                 error_msg += f'- `{cause}`\n'
-    if isinstance(exception, lightbulb.OnlyInGuild):
+        else:
+            error_msg += f'- `{exception}`\n'
+    elif isinstance(exception, lightbulb.OnlyInGuild):
         error_msg += f'- `Cannot invoke Guild only command in DMs`\n'
-    if isinstance(exception, lightbulb.NotOwner):
+    elif isinstance(exception, lightbulb.NotOwner):
         error_msg += f'- `Only bot owner can use this command`\n'
     else:
         logging.error(exception)
-
+        raise exception
     await event.context.respond(error_msg)
 
 def run() -> None:
