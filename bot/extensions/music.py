@@ -314,7 +314,7 @@ async def effects(ctx : lightbulb.Context) -> None:
     timescale = lavalink.Timescale()
 
     if effect == 'Bass Boost':
-        equalizer.update(EFFECT_BASS_BOOST['equalizer'])
+        equalizer.update(bands=EFFECT_BASS_BOOST['equalizer']['bands'])
     if effect == 'Nightcore':
         equalizer.update(bands=EFFECT_NIGHTCORE['equalizer']['bands'])
         timescale.update(
@@ -329,6 +329,7 @@ async def effects(ctx : lightbulb.Context) -> None:
     await player.set_filter(equalizer)
     await player.set_filter(timescale)
     await ctx.respond(f'Effect added: `{effect}`')
+    logging.info('`%s` added to player on guild: %s', effect, ctx.guild_id)
 
 @plugin.command()
 @lightbulb.add_checks(

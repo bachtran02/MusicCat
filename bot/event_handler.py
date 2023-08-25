@@ -41,7 +41,7 @@ class EventHandler:
 
         if not bot_voice_state or event.cur_state.user_id == bot_id:
             if not bot_voice_state and event.cur_state.user_id == bot_id:  # bot is disconnected
-                player.clear()
+                await player.stop()
                 logging.info('Client disconnected from voice on guild: %s', event.cur_state.guild_id)
             return
 

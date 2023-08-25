@@ -12,13 +12,14 @@ class CustomPlayer(DefaultPlayer):
         self.text_id: int = None
         self.recently_played : t.List[AudioTrack] = []
     
-    def clear(self):
+    async def clear(self):
         """Clear all existing configs, clear queue"""
 
         self.loop, self.shuffle  = 0, False
         self.current, self.previous = None, None
         self.queue.clear()
         self.recently_played.clear()
+        await self.clear_filters()
 
     def set_text_id(self, text_id: int):
         self.text_id = text_id
@@ -104,5 +105,5 @@ class CustomPlayer(DefaultPlayer):
     async def stop(self):
         
         await self.node.update_player(self._internal_id, encoded_track=None)
-        self.clear()
+        await self.clear()
     
