@@ -2,8 +2,7 @@
 
 A Discord music-playing bot built with [hikari](https://www.hikari-py.dev/) and [lightbulb](https://hikari-lightbulb.readthedocs.io/en/latest/). MusicCat uses [Lavalink](https://github.com/lavalink-devs/Lavalink/tree/master) as audio source and [Lavalink.py](https://github.com/Devoxin/Lavalink.py) (custom branch) as wrapper for Lavalink. 
 
-MusicCat runs in Docker container hosted by my Raspberry Pi with the desired uptime 24/7. 
-More information on how this repo can be forked and run locally will be added! 
+Invite the bot here: [Invite URL](https://discord.com/api/oauth2/authorize?client_id=1055170653126398013&permissions=0&scope=bot)
 
 ---
 
