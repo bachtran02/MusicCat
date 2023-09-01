@@ -4,7 +4,8 @@ import lightbulb
 from bot.utils import format_time
 from bot.constants import COLOR_DICT
 
-plugin = lightbulb.Plugin('Lavalink', 'Lavalink info')
+plugin = lightbulb.Plugin('Lavalink', 'Lavalink commands')
+
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.owner_only)
