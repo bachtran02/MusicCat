@@ -1,14 +1,9 @@
-import asyncio
-
 import lavalink
-from lavalink import LoadType
-import hikari
 import lightbulb
 
-from bot.impl import _play, _search
 from bot.checks import valid_user_voice
-from bot.constants import COLOR_DICT
-from bot.components import TrackSelectView
+from bot.impl import _play, _search
+from bot.library.autocomplete_choice import AutocompleteChoice 
 
 plugin = lightbulb.Plugin('Play', 'Commands to play music')
 
@@ -17,7 +12,7 @@ plugin = lightbulb.Plugin('Play', 'Commands to play music')
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice,
 )
-@lightbulb.option('query', 'Search query for track', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
+@lightbulb.option('query', 'Search query for track', required=True)
 @lightbulb.option('loop', 'Loop track', choices=['True'], required=False, default=False)
 @lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default='False')
 @lightbulb.option('shuffle', 'Shuffle playlist', choices=['False'], required=False, default='True')
@@ -25,10 +20,8 @@ plugin = lightbulb.Plugin('Play', 'Commands to play music')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
     """Play track URL or search query on YouTube"""
-
-    query = ctx.options.query
     
-    result: lavalink.LoadResult = await _search(lavalink=plugin.bot.d.lavalink, query=query)
+    result: lavalink.LoadResult = await _search(lavalink=plugin.bot.d.lavalink, query=ctx.options.query)
     embed = await _play(
         bot=plugin.bot, guild_id=ctx.guild_id, author_id=ctx.author.id,
         result=result, text_id=ctx.channel_id, loop=(ctx.options.loop == 'True'),
@@ -62,49 +55,37 @@ async def lnchill(ctx: lightbulb.Context) -> None:
     await ctx.respond(embed=embed, delete_after=30)
 
 
+async def query_autocomplete(option, interaction):
+   
+    query = option.value
+    if not query:
+        return None
+    
+    for opt in interaction.options:
+        if opt.name == 'source' and opt.value == 'YouTube Music':
+            result: lavalink.LoadResult = await plugin.bot.d.lavalink.get_tracks(query=f'ytmsearch:{query}')
+            return [AutocompleteChoice(f'🎵 {track.title[:60]} - {track.author[:20]}', track.uri) for track in result.tracks]
+    result: lavalink.LoadResult = await plugin.bot.d.lavalink.get_tracks(query=f'ytsearch:{query}')
+    return [AutocompleteChoice(f'🎬 {track.title[:60]} [{track.author[:20]}]', track.uri) for track in result.tracks]
+
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice,
 )
-@lightbulb.option('query', 'The query to search for.', modifier=lightbulb.OptionModifier.CONSUME_REST, required=True)
+@lightbulb.option('source', 'Source to look up query', choices=['YouTube', 'YouTube Music'], default='YouTube')
+@lightbulb.option('query', 'Query to search for.', required=True, autocomplete=query_autocomplete)
 @lightbulb.command('search', 'Search & add specific YouTube track to queue', auto_defer = True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def search(ctx: lightbulb.Context) -> None:
 
-    query = ctx.options.query
-
-    result = await _search(lavalink=plugin.bot.d.lavalink, query=query)
-    if result.load_type != LoadType.SEARCH:
-        await ctx.respond('⚠️ Failed to load search result for query!', delete_after=30)
-        return
-
-    options = [f'{i + 1}. {track.title[:55]}' for i, track in enumerate(result.tracks[:20])]
-    view = TrackSelectView(select_options=options, timeout=60)
-    view.build_track_select(placeholder='Select track to play')
-
-    message = await ctx.respond(
-        components=view,
-        embed=hikari.Embed(
-            color=COLOR_DICT['GREEN'],
-            description=f'🔍 **Search results for:** `{query}`',
-        ))
-    
-    await view.start(message)
-    await view.wait()
-
-    if (choice := view.get_choice()) == -1:
-        await message.delete()
-        return
-    
-    result.load_type = LoadType.TRACK
-    result.tracks = [result.tracks[choice - 1]]
-
+    result = await _search(lavalink=plugin.bot.d.lavalink, query=ctx.options.query)
     embed = await _play(
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
         author_id=ctx.author.id, text_id=ctx.channel_id,)
-    await message.edit(embed=embed, components=None)
-    await asyncio.sleep(30)
-    await message.delete()
+    if not embed:
+        await ctx.respond('⚠️ No result for query!', delete_after=30)
+    else:
+        await ctx.respond(embed=embed, delete_after=30)
 
 
 def load(bot: lightbulb.BotApp) -> None:
