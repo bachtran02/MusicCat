@@ -45,24 +45,15 @@ async def on_started_event(event: hikari.StartedEvent) -> None:
 async def on_error(event: lightbulb.CommandErrorEvent) -> None:
 
     exception = event.exception
-    error_msg = ''
-
     if isinstance(exception, lightbulb.CheckFailure):
-        if exception.causes:
-            error_msg += f'Multiple check failures:\n'
-            for cause in exception.causes:
-                if isinstance(cause, lightbulb.CheckFailure):
-                    error_msg += f'- `{cause}`\n'
-        else:
-            error_msg += f'{exception}\n'
-    if isinstance(exception, lightbulb.OnlyInGuild):
-        error_msg += f'Cannot invoke Guild only command in DMs\n'
-    elif isinstance(exception, lightbulb.NotOwner):
-        error_msg += f'Only bot owner can use this command\n'
-    if not error_msg:   # if error is not handled
-        logging.error(exception)
+        causes = exception.causes or [exception]
+        error_msg = causes[0]
+        errors = [cause.__class__.__name__ for cause in causes]
+        logging.error('%s errors on guild %s', errors, event.context.guild_id)   
+    else:
         raise exception
-    await event.context.respond(error_msg)
+    await event.context.respond(error_msg, flags=hikari.MessageFlag.EPHEMERAL)
+    
 
 def run() -> None:
     miru.install(bot)

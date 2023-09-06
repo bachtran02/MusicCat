@@ -1,4 +1,17 @@
 import lightbulb
+from lightbulb import CheckFailure
+
+class PlayerNotPlaying(CheckFailure):
+    pass
+
+class PlayerNotConnected(CheckFailure):
+    pass
+
+class NotInVoice(CheckFailure):
+    pass
+
+class NotSameVoice(CheckFailure):
+    pass
 
 @lightbulb.Check
 def valid_user_voice(ctx: lightbulb.Context) -> bool:
@@ -12,9 +25,9 @@ def valid_user_voice(ctx: lightbulb.Context) -> bool:
     
     # if user & bot not in voice or in different channels
     if not user_voice_state:
-        raise lightbulb.CheckFailure('Join voice channel to use command')
+        raise NotInVoice('Join voice channel to use command')
     if bot_voice_state and user_voice_state[0].channel_id != bot_voice_state[0].channel_id:
-        raise lightbulb.CheckFailure('Join the same channel as bot to use command')
+        raise NotSameVoice('Join the same channel as bot to use command')
     return True
 
 @lightbulb.Check
@@ -22,7 +35,7 @@ def player_connected(ctx: lightbulb.Context) -> bool:
 
     player = ctx.app.d.lavalink.player_manager.get(ctx.guild_id)
     if not player or not player.is_connected:
-        raise lightbulb.CheckFailure('Bot is not in any voice channel')    
+        raise PlayerNotConnected('Bot is not in any voice channel')
     return True
 
 @lightbulb.Check
@@ -30,5 +43,5 @@ def player_playing(ctx: lightbulb.Context) -> bool:
 
     player = ctx.app.d.lavalink.player_manager.get(ctx.guild_id)
     if not player or not player.is_playing:
-        raise lightbulb.CheckFailure('Player is not playing')
+        raise PlayerNotPlaying('Player is not playing')
     return True
