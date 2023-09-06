@@ -13,7 +13,7 @@ plugin = lightbulb.Plugin('Queue', 'Queue commands')
 @lightbulb.add_checks(
     lightbulb.guild_only, player_playing
 )
-@lightbulb.command('now', 'Display current track', auto_defer=True)
+@lightbulb.command('now', 'Display current track')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def now(ctx: lightbulb.Context) -> None:
     """Display current track"""
@@ -35,7 +35,7 @@ async def now(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, player_playing,
 )
-@lightbulb.command('queue', 'Display the next 10 tracks in queue', auto_defer=True)
+@lightbulb.command('queue', 'Display the next 10 tracks in queue')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def queue(ctx : lightbulb.Context) -> None:
     """Display next (max 10) tracks in queue"""
@@ -71,7 +71,7 @@ async def remove_autocomplete(option, interaction):
     lightbulb.guild_only, valid_user_voice, player_playing
 )
 @lightbulb.option('track', 'Track to remove', required=True, autocomplete=remove_autocomplete)
-@lightbulb.command('remove', 'Remove a track from queue', auto_defer=True)
+@lightbulb.command('remove', 'Remove a track from queue')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def remove(ctx: lightbulb.Context) -> None:
     """Remove a track from queue"""

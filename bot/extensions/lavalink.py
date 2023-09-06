@@ -9,7 +9,7 @@ plugin = lightbulb.Plugin('Lavalink', 'Lavalink commands')
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.owner_only)
-@lightbulb.command('stats', 'Display lavalink stats.', auto_defer=True)
+@lightbulb.command('stats', 'Display lavalink stats')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def stats(ctx: lightbulb.Context) -> None:
     """Display lavalink stats."""
@@ -38,7 +38,7 @@ async def stats(ctx: lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.owner_only)
-@lightbulb.command('info', 'Display lavalink info.', auto_defer=True)
+@lightbulb.command('info', 'Display lavalink info')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def info(ctx: lightbulb.Context) -> None:
     """Display lavalink info."""

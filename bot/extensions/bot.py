@@ -8,17 +8,24 @@ from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 plugin = lightbulb.Plugin('Bot', 'Bot commands')
 
 
+# @plugin.command()
+# @lightbulb.command('ping', 'Test command')
+# @lightbulb.implements(lightbulb.SlashCommand)
+# async def ping(ctx: lightbulb.Context) -> None:
+#     await ctx.respond('pong!', flags=hikari.MessageFlag.EPHEMERAL)
+
+
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command('join', 'Join the voice channel you are in.', auto_defer=True)
+@lightbulb.command('join', 'Join the voice channel you are in')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def join(ctx: lightbulb.Context) -> None:
     """Join voice channel user is in"""
    
     try:
         player = await _join(plugin.bot, ctx.guild_id, ctx.author.id)
-    except RuntimeError as error:
-        await ctx.respond(f'⚠️ {error}')
+    except RuntimeError as e:
+        await ctx.respond(e, flags=hikari.MessageFlag.EPHEMERAL)
     else:
         await ctx.respond(f'Joined <#{player.channel_id}>')
 
@@ -27,7 +34,7 @@ async def join(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_connected,
 )
-@lightbulb.command('leave', 'Leaves the voice channel the bot is in, clearing the queue.', auto_defer=True)
+@lightbulb.command('leave', 'Leaves the voice channel the bot is in, clearing the queue')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def leave(ctx: lightbulb.Context) -> None:
     """Leave voice channel, clear guild player"""

@@ -1,3 +1,4 @@
+import hikari
 import lavalink
 import lightbulb
 
@@ -16,7 +17,7 @@ plugin = lightbulb.Plugin('Play', 'Commands to play music')
 @lightbulb.option('loop', 'Loop track', choices=['True'], required=False, default=False)
 @lightbulb.option('next', 'Play the this track next', choices=['True'], required=False, default='False')
 @lightbulb.option('shuffle', 'Shuffle playlist', choices=['False'], required=False, default='True')
-@lightbulb.command('play', 'Play track URL or search query on YouTube', auto_defer=True)
+@lightbulb.command('play', 'Play track URL or search query on YouTube')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def play(ctx: lightbulb.Context) -> None:
     """Play track URL or search query on YouTube"""
@@ -27,7 +28,7 @@ async def play(ctx: lightbulb.Context) -> None:
         result=result, text_id=ctx.channel_id, loop=(ctx.options.loop == 'True'),
         index=0 if ctx.options.next == 'True' else None, shuffle=(ctx.options.shuffle == 'True'),)
     if not embed:
-        await ctx.respond('⚠️ No result for query!', delete_after=30)
+        await ctx.respond('No result for query!', flags=hikari.MessageFlag.EPHEMERAL)
     else:
         await ctx.respond(embed=embed, delete_after=30)
 
@@ -37,7 +38,7 @@ async def play(ctx: lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice,
 )
 @lightbulb.option('latest', 'Play newest tracks', choices=['True'], default=None, required=False)
-@lightbulb.command('lnchill', 'Play random linhnhichill', auto_defer=True)
+@lightbulb.command('lnchill', 'Play random linhnhichill')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def lnchill(ctx: lightbulb.Context) -> None:
 
@@ -74,7 +75,7 @@ async def query_autocomplete(option, interaction):
 )
 @lightbulb.option('source', 'Source to look up query', choices=['YouTube', 'YouTube Music'], default='YouTube')
 @lightbulb.option('query', 'Query to search for.', required=True, autocomplete=query_autocomplete)
-@lightbulb.command('search', 'Search & add specific YouTube track to queue', auto_defer = True)
+@lightbulb.command('search', 'Search & add specific YouTube/YouTube Music track to queue')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def search(ctx: lightbulb.Context) -> None:
 
@@ -83,7 +84,7 @@ async def search(ctx: lightbulb.Context) -> None:
         bot=plugin.bot, result=result, guild_id=ctx.guild_id,
         author_id=ctx.author.id, text_id=ctx.channel_id,)
     if not embed:
-        await ctx.respond('⚠️ No result for query!', delete_after=30)
+        await ctx.respond('No result for query!', flags=hikari.MessageFlag.EPHEMERAL)
     else:
         await ctx.respond(embed=embed, delete_after=30)
 

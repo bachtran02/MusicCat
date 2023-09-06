@@ -17,7 +17,7 @@ plugin = lightbulb.Plugin('Player', 'Player commands')
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('skip', 'Skip the current song.', auto_defer=True)
+@lightbulb.command('skip', 'Skip the current song')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def skip(ctx: lightbulb.Context) -> None:
     """Skip the current song."""
@@ -36,7 +36,7 @@ async def skip(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('pause', 'Pause the current song.', auto_defer=True)
+@lightbulb.command('pause', 'Pause the current song')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def pause(ctx: lightbulb.Context) -> None:
     """Pause guild player"""
@@ -55,7 +55,7 @@ async def pause(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_connected,
 )
-@lightbulb.command('resume', 'Resume playing the current track', auto_defer=True)
+@lightbulb.command('resume', 'Resume playing the current track')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def resume(ctx: lightbulb.Context) -> None:
     """Resume guild player"""
@@ -74,7 +74,7 @@ async def resume(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('stop', 'Stops the current song and clears queue.', auto_defer=True)
+@lightbulb.command('stop', 'Stops the current song and clears queue')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def stop(ctx: lightbulb.Context) -> None:
     """Stop the guild player"""
@@ -93,17 +93,16 @@ async def stop(ctx: lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('restart', 'Restart current track', auto_defer=True)
+@lightbulb.command('restart', 'Restart current track')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def restart(ctx : lightbulb.Context) -> None:
     """Replay current track"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     if not player.current.is_seekable:
-        await ctx.respond('⚠️ Current track is not seekable!')
+        await ctx.respond('Current track is not seekable!', flags=hikari.MessageFlag.EPHEMERAL)
         return
     await player.seek(0)
-
     await ctx.respond(embed=hikari.Embed(
         description = '⏩ Track restarted!',
         colour = COLOR_DICT['BLUE']
@@ -115,21 +114,21 @@ async def restart(ctx : lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.option('position', 'Position to seek (format: "[min]:[sec]" )', required=True)
-@lightbulb.command('seek', "Seeks to a given position in the track", auto_defer=True)
+@lightbulb.command('seek', "Seeks to a given position in the track")
 @lightbulb.implements(lightbulb.SlashCommand)
 async def seek(ctx : lightbulb.Context) -> None:
     """Seek to a position in a track"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     if not player.current.is_seekable:
-        await ctx.respond('⚠️ Current track is not seekable!')
+        await ctx.respond('Current track is not seekable!', flags=hikari.MessageFlag.EPHEMERAL)
         return
 
     pos = ctx.options.position
     pos_rx = re.compile(r'\d+:\d{2}$')
 
     if not (pos_rx.match(pos) and int(pos.split(':')[1]) < 60):
-        await ctx.respond('⚠️ Invalid position!')
+        await ctx.respond('Invalid position!', flags=hikari.MessageFlag.EPHEMERAL)
         return
     
     (minute, second) = (int(x) for x in pos.split(':'))
@@ -147,7 +146,7 @@ async def seek(ctx : lightbulb.Context) -> None:
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
 @lightbulb.option('mode', 'Loop mode', choices=['track', 'queue', 'end'], required=False, default='track')
-@lightbulb.command('loop', 'Loop current track or queue or end loop', auto_defer=True)
+@lightbulb.command('loop', 'Loop current track or queue or end loop')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def loop(ctx:lightbulb.Context) -> None:
     """Loop current track or queue or end loop"""
@@ -175,7 +174,7 @@ async def loop(ctx:lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('shuffle', 'Enable/disable shuffle', auto_defer=True)
+@lightbulb.command('shuffle', 'Enable/disable shuffle')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def shuffle(ctx:lightbulb.Context) -> None:
     """Shuffle queue"""
@@ -194,7 +193,7 @@ async def shuffle(ctx:lightbulb.Context) -> None:
     lightbulb.guild_only, player_playing,
 )
 @lightbulb.option('effect', 'Effect to add', choices=['Bass Boost', 'Nightcore', 'None'], required=True)
-@lightbulb.command('effects', 'Add music effect to player', auto_defer=True)
+@lightbulb.command('effects', 'Add music effect to player')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def effects(ctx : lightbulb.Context) -> None:
     """Add music effect to player"""
@@ -226,17 +225,14 @@ async def effects(ctx : lightbulb.Context) -> None:
 
 @plugin.command()
 @lightbulb.add_checks(
-    lightbulb.guild_only,
+    lightbulb.guild_only, player_playing
 )
-@lightbulb.command('player', 'Interactive guild music player', auto_defer=True)
+@lightbulb.command('player', 'Interactive guild music player')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def player(ctx: lightbulb.Context) -> None:
     """Interactive guild music player"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    if not player or not player.is_playing:
-        await ctx.respond('⚠️ Player is not playing!')
-        return
 
     desc = f'**Streaming:** [{player.current.title}]({player.current.uri})'
     desc += '\n' + player_bar(player)
