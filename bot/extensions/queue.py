@@ -4,7 +4,7 @@ import lightbulb
 from bot.checks import valid_user_voice, player_playing
 from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
-from bot.components import TrackSelectView
+from bot.library.autocomplete_choice import AutocompleteChoice 
 
 plugin = lightbulb.Plugin('Queue', 'Queue commands')
 
@@ -59,39 +59,31 @@ async def queue(ctx : lightbulb.Context) -> None:
         colour = COLOR_DICT['GREEN']))
     
 
+async def remove_autocomplete(option, interaction):
+    
+    player = plugin.bot.d.lavalink.player_manager.get(interaction.guild_id)
+    if not player or not player.is_playing:
+        return None
+    return [AutocompleteChoice(f'{track.title[:60]} - {track.author[:20]}', str(i)) for i, track in enumerate(player.queue[:25])]
+
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing
 )
-@lightbulb.command('remove', 'Remove a track from queue', auto_defer = True)
+@lightbulb.option('track', 'Track to remove', required=True, autocomplete=remove_autocomplete)
+@lightbulb.command('remove', 'Remove a track from queue', auto_defer=True)
 @lightbulb.implements(lightbulb.SlashCommand)
 async def remove(ctx: lightbulb.Context) -> None:
     """Remove a track from queue"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    if not player.queue:
-        await ctx.respond('⚠️ Queue is emtpy!')
-        return
-    
-    options = [f'{i + 1}. {track.title[:55]}' for i, track in enumerate(player.queue[:20])]
-    view = TrackSelectView(select_options=options, timeout=60)
-    view.build_track_select(placeholder='Select track to remove')
+    index = ctx.options.track
+    popped_track = player.queue.pop(int(index))
 
-    message = await ctx.respond(components=view)
-    await view.start(message)
-    await view.wait()
-    
-    if (choice := view.get_choice()) == -1:
-        await message.delete()
-        return
-        
-    popped_track = player.queue.pop(choice - 1)
-    await message.edit(
-        components=None,
+    await ctx.respond(
         embed=hikari.Embed(
             description = f'Removed: [{popped_track.title}]({popped_track.uri})',
-            colour = COLOR_DICT['RED']
-    ))
+            colour = COLOR_DICT['RED']), delete_after=30)
 
 
 def load(bot: lightbulb.BotApp) -> None:
