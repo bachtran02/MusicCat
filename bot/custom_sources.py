@@ -1,3 +1,4 @@
+"""
 from lavalink import (LoadResult, LoadType, Source, LoadResult)
 import typing as t
 import random
@@ -45,3 +46,4 @@ class lnchillSource(Source):
             return LoadResult(LoadType.TRACK, tracks=[result.tracks[selected_track]], playlist_info=None)
         return LoadResult(LoadType.NO_MATCHES, tracks=[], playlist_info=None)
 
+"""

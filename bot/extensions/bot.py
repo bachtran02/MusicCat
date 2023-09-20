@@ -5,6 +5,7 @@ from bot.impl import _join
 from bot.checks import valid_user_voice, player_connected
 from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 
+DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Bot', 'Bot commands')
 
 
@@ -27,7 +28,7 @@ async def join(ctx: lightbulb.Context) -> None:
     except RuntimeError as e:
         await ctx.respond(e, flags=hikari.MessageFlag.EPHEMERAL)
     else:
-        await ctx.respond(f'Joined <#{player.channel_id}>')
+        await ctx.respond(f'Joined <#{player.channel_id}>', delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -40,7 +41,33 @@ async def leave(ctx: lightbulb.Context) -> None:
     """Leave voice channel, clear guild player"""
 
     await plugin.bot.update_voice_state(ctx.guild_id, None)
-    await ctx.respond('Left voice channel!')
+    await ctx.respond('Left voice channel!', delete_after=DELETE_AFTER)
+
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, valid_user_voice, player_connected,
+)
+@lightbulb.command('mute', 'Disable sending message on track start')
+@lightbulb.implements(lightbulb.SlashCommand)
+async def mute(ctx: lightbulb.Context) -> None:
+    """Disable sending message on track start"""
+
+    plugin.bot.d.guilds[ctx.guild_id].send_nowplaying = False
+    await ctx.respond('Bot muted!', delete_after=DELETE_AFTER)
+
+
+@plugin.command()
+@lightbulb.add_checks(
+    lightbulb.guild_only, valid_user_voice, player_connected,
+)
+@lightbulb.command('unmute', 'Enable sending message on track start')
+@lightbulb.implements(lightbulb.SlashCommand)
+async def unmute(ctx: lightbulb.Context) -> None:
+    """Enable sending message on track start"""
+
+    plugin.bot.d.guilds[ctx.guild_id].send_nowplaying = True
+    await ctx.respond('Bot unmuted!', delete_after=DELETE_AFTER)
 
 
 @plugin.listener(hikari.VoiceServerUpdateEvent)

@@ -10,7 +10,7 @@ from bot.constants import COLOR_DICT, EFFECT_NIGHTCORE, EFFECT_BASS_BOOST
 from bot.utils import player_bar
 from bot.components import PlayerView
 
-
+DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Player', 'Player commands')
 
 @plugin.command()
@@ -26,9 +26,9 @@ async def skip(ctx: lightbulb.Context) -> None:
     prev_track = await player.skip()
 
     await ctx.respond(embed=hikari.Embed(
-        description = f'Skipped: [{prev_track.title}]({prev_track.uri})',
+        description = f'⏭️ Track skipped: [{prev_track.title}]({prev_track.uri})',
         colour = COLOR_DICT['RED']
-    ))
+    ), delete_after=DELETE_AFTER)
     logging.info('Track skipped on guild: %s', ctx.guild_id)
 
 
@@ -47,7 +47,7 @@ async def pause(ctx: lightbulb.Context) -> None:
     await ctx.respond(embed=hikari.Embed(
         description = '⏸️ Paused player',
         colour = COLOR_DICT['YELLOW']
-    ))
+    ), delete_after=DELETE_AFTER)
     logging.info('Track paused on guild: %s', ctx.guild_id)
 
 
@@ -66,7 +66,7 @@ async def resume(ctx: lightbulb.Context) -> None:
     await ctx.respond(embed=hikari.Embed(
         description = '▶️ Resumed player',
         colour = COLOR_DICT['GREEN']
-    ))
+    ), delete_after=DELETE_AFTER)
     logging.info('Track resumed on guild: %s', ctx.guild_id)
 
 
@@ -81,11 +81,12 @@ async def stop(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     await player.stop()
+    plugin.bot.d.guilds[ctx.guild_id].clear()
 
     await ctx.respond(embed=hikari.Embed(
         description = '⏹️ Stopped playing',
         colour = COLOR_DICT['RED']
-    ))
+    ), delete_after=DELETE_AFTER)
     logging.info('Player stopped on guild: %s', ctx.guild_id)
 
 
@@ -104,9 +105,9 @@ async def restart(ctx : lightbulb.Context) -> None:
         return
     await player.seek(0)
     await ctx.respond(embed=hikari.Embed(
-        description = '⏩ Track restarted!',
+        description = '⏪ Track restarted!',
         colour = COLOR_DICT['BLUE']
-    ))
+    ), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -138,7 +139,7 @@ async def seek(ctx : lightbulb.Context) -> None:
     await ctx.respond(embed=hikari.Embed(
         description = f'⏩ Player moved to `{minute}:{second:02}`',
         colour = COLOR_DICT['BLUE']
-    ))
+    ), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -167,7 +168,7 @@ async def loop(ctx:lightbulb.Context) -> None:
     await ctx.respond(embed=hikari.Embed(
         description = body,
         colour = COLOR_DICT['BLUE']
-    ))
+    ), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -185,7 +186,7 @@ async def shuffle(ctx:lightbulb.Context) -> None:
     await ctx.respond(embed=hikari.Embed(
         description = f'🔀 {("Shuffle enabled" if player.shuffle else "Shuffle disabled")}',
         colour = COLOR_DICT['BLUE']
-    ))
+    ), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -219,10 +220,14 @@ async def effects(ctx : lightbulb.Context) -> None:
     
     await player.set_filter(equalizer)
     await player.set_filter(timescale)
-    await ctx.respond(f'Effect added: `{effect}`')
+    await ctx.respond(embed=hikari.Embed(
+        description = f'Effect added: `{effect}`',
+        colour = COLOR_DICT['BLUE']
+    ), delete_after=DELETE_AFTER)
     logging.info('`%s` added to player on guild: %s', effect, ctx.guild_id)
 
 
+"""
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, player_playing
@@ -230,13 +235,13 @@ async def effects(ctx : lightbulb.Context) -> None:
 @lightbulb.command('player', 'Interactive guild music player')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def player(ctx: lightbulb.Context) -> None:
-    """Interactive guild music player"""
+    \\\"""Interactive guild music player\\\"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
 
-    desc = f'**Streaming:** [{player.current.title}]({player.current.uri})'
-    desc += '\n' + player_bar(player)
-    desc += f'Requested - <@!{player.current.requester}>'
+    desc = f'**Current:** [{player.current.title}]({player.current.uri})\n'
+    desc += player_bar(player) + '\n'
+    desc += f'Requested - <@!{player.current.requester}>\n\n'
 
     view = PlayerView()
 
@@ -248,6 +253,7 @@ async def player(ctx: lightbulb.Context) -> None:
 
     await view.start(message)  # Start listening for interactions
     await view.wait()
+"""
 
 
 def load(bot: lightbulb.BotApp) -> None:

@@ -6,6 +6,7 @@ from bot.constants import COLOR_DICT
 from bot.utils import format_time, player_bar
 from bot.library.autocomplete_choice import AutocompleteChoice 
 
+DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Queue', 'Queue commands')
 
 
@@ -20,9 +21,9 @@ async def now(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
 
-    desc = f'[{player.current.title}]({player.current.uri})'
-    desc += '\n' + player_bar(player)
-    desc += f'Requested - <@!{player.current.requester}>'
+    desc = f'[{player.current.title}]({player.current.uri})\n'
+    desc += player_bar(player) + '\n'
+    desc += f'Requested - <@!{player.current.requester}>\n'
 
     await ctx.respond(
         embed=hikari.Embed(
@@ -42,21 +43,23 @@ async def queue(ctx : lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     
-    desc = f'**Current:** [{player.current.title}]({player.current.uri})'
-    desc += '\n' + player_bar(player)
-    desc += f'Requested - <@!{player.current.requester}>' + '\n'
+    desc = f'**Current:** [{player.current.title}]({player.current.uri})\n'
+    desc += player_bar(player) + '\n'
+    desc += f'Requested - <@!{player.current.requester}>\n\n'
 
     for i in range(min(len(player.queue), 10)):
         if i == 0:
-            desc += '\n' + '**Up next:**'
+            desc += '**Up next:**'
         track = player.queue[i]
         desc += '\n' + '{0}. [{1}]({2}) `{3}` <@!{4}>'.format(
             i+1, track.title, track.uri, format_time(track.duration), track.requester)
 
-    await ctx.respond(embed=hikari.Embed(
-        title = '🎵 Queue',
-        description = desc,
-        colour = COLOR_DICT['GREEN']))
+    await ctx.respond(
+        embed=hikari.Embed(
+            title = '🎵 Queue',
+            description = desc,
+            colour = COLOR_DICT['GREEN']
+        ).set_thumbnail(player.current.artwork_url))
     
 
 async def remove_autocomplete(option, interaction):
@@ -83,7 +86,7 @@ async def remove(ctx: lightbulb.Context) -> None:
     await ctx.respond(
         embed=hikari.Embed(
             description = f'Removed: [{popped_track.title}]({popped_track.uri})',
-            colour = COLOR_DICT['RED']), delete_after=30)
+            colour = COLOR_DICT['RED']), delete_after=DELETE_AFTER)
 
 
 def load(bot: lightbulb.BotApp) -> None:

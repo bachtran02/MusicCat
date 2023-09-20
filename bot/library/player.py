@@ -8,8 +8,6 @@ class CustomPlayer(DefaultPlayer):
     
     def __init__(self, guild_id: int, node: 'Node'):
         super().__init__(guild_id, node)
-        
-        self.text_id: int = None
         self.recently_played : t.List[AudioTrack] = []
     
     async def clear(self):
@@ -20,9 +18,6 @@ class CustomPlayer(DefaultPlayer):
         self.queue.clear()
         self.recently_played.clear()
         await self.clear_filters()
-
-    def set_text_id(self, text_id: int):
-        self.text_id = text_id
 
     async def play(self, track=None, start_time=0, end_time=None,
                    no_replace=False, volume=None, pause=False, **kwargs):

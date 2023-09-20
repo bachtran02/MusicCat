@@ -5,7 +5,7 @@ from hikari.api.special_endpoints import AutocompleteChoiceBuilder
 class AutocompleteChoice(AutocompleteChoiceBuilder):
 
     def __init__(self, name, value) -> None:
-        self.name = name
+        self.name = name[:99]   # to avoid Discord exception
         self.value = value
 
     def name(self) -> str:

@@ -4,6 +4,7 @@ import lavalink
 
 from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.constants import COLOR_DICT
+from bot.utils import format_time
 from bot.logger.custom_logger import track_logger
 
 class EventHandler:
@@ -42,6 +43,7 @@ class EventHandler:
         if not bot_voice_state or event.cur_state.user_id == bot_id:
             if not bot_voice_state and event.cur_state.user_id == bot_id:  # bot is disconnected
                 await player.stop()
+                self.bot.d.guilds.pop(event.cur_state.guild_id)
                 logging.info('Client disconnected from voice on guild: %s', event.cur_state.guild_id)
             return
 
@@ -75,23 +77,34 @@ class EventHandler:
     @lavalink.listener(lavalink.TrackStartEvent)
     async def track_start(self, event: lavalink.TrackStartEvent):
 
-        description  = '[{0}]({1})\n Requested - <@{2}>\n'.format(
-            event.track.title, event.track.uri, event.track.requester)
-        
-        try:
-            await self.bot.rest.create_message(
-                channel=event.player.text_id,
-                embed=hikari.Embed(
-                    title='🎶 **Now playing**',
-                    description = description,
-                    colour = COLOR_DICT['GREEN'],
-                ).set_thumbnail(event.track.artwork_url)
-            )
-        except Exception as error:
-            logging.error('Failed to send message on track start due to: %s', error)
-
+        track = event.track
         track_logger.info('%s - %s - %s', event.track.title, event.track.author, event.track.uri)
         logging.info('Track started on guild: %s', event.player.guild_id)
+
+        description  = '[{0}]({1}) `{2}`\n Requested - <@{3}>\n'.format(
+            track.title, track.uri, format_time(track.duration), track.requester)
+        
+        data = self.bot.d.guilds[event.player.guild_id]
+        if data.channel_id and data.send_nowplaying:
+            if event.player.loop == 1:
+                if not data.track_loop:
+                    self.bot.d.guilds[event.player.guild_id].track_loop = True
+                else: 
+                    return
+            else:
+                self.bot.d.guilds[event.player.guild_id].track_loop = False
+            
+            try:
+                await self.bot.rest.create_message(
+                    channel=data.channel_id,
+                    embed=hikari.Embed(
+                        title='**Now playing**',
+                        description = description,
+                        color = COLOR_DICT['GREEN'],
+                    ).set_thumbnail(track.artwork_url)
+                )
+            except Exception as error:
+                logging.error('Failed to send message on track start due to: %s', error)
 
     @lavalink.listener(lavalink.TrackEndEvent)
     async def track_end(self, event: lavalink.TrackEndEvent):

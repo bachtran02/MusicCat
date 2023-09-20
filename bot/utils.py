@@ -42,30 +42,40 @@ def format_time(time: int, option: str = 'a') -> str:
 
 def progress_bar(percent: float) -> str:
 
-    str = ''
+    bar = ''
     for i in range(12):
         if i == (int)(percent*12):
-            str+='🔘'
+            bar += '🔘'
         else:
-            str+='▬'
-    return str;
+            bar += '▬'
+    return bar;
 
 def player_bar(player: lavalink.DefaultPlayer):
 
-    loop_emj = ''
-    if player.loop == player.LOOP_SINGLE:
-        loop_emj = '🔂 '
-    elif player.loop == player.LOOP_QUEUE:
-        loop_emj = '🔁 '
+    EMOJIS = {
+        'LOOP_TRACK':       '🔂',
+        'LOOP_QUEUE':       '🔁',
+        'PLAYER_PLAY':      '⏸️',
+        'PLAYER_PAUSED':    '▶️',
+        'PLAYER_SHUFFLE':   '🔀',
+    }
 
-    play_emj = '▶️' if not player.paused else '⏸️'
-    shuffle_emj = '🔀 ' if player.shuffle else ''
-
+    loop_emoji, playtime, player_bar = '', '', ''
     if player.current.stream:
         playtime = 'LIVE'
-        bar = progress_bar(0.99)
+        player_bar = progress_bar(0.99)
     else:
         playtime = f'{format_time(player.position)} | {format_time(player.current.duration)}'
-        bar = progress_bar(player.position/player.current.duration)
+        player_bar = progress_bar(player.position/player.current.duration)
+    if player.loop == player.LOOP_SINGLE:
+        loop_emoji = EMOJIS['LOOP_TRACK']
+    elif player.loop == player.LOOP_QUEUE:
+        loop_emoji = EMOJIS['LOOP_QUEUE']
 
-    return f'{play_emj} {bar} `{playtime}` {loop_emj}{shuffle_emj} \n'
+    return '{0} {1} `{2}` {3}{4}'.format(
+        EMOJIS['PLAYER_PAUSED'] if player.paused else EMOJIS['PLAYER_PLAY'],
+        player_bar,
+        playtime,
+        loop_emoji,
+        EMOJIS['PLAYER_SHUFFLE'] if player.shuffle else '',
+    )
