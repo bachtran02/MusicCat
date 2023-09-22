@@ -21,9 +21,14 @@ async def now(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
 
-    desc = f'[{player.current.title}]({player.current.uri})\n'
+    track = player.current
+    if track.source_name == 'spotify':
+        desc = f'[{track.title} - {track.author}]'
+    else:
+        desc = f'[{track.title}]'
+    desc += f'({track.uri})\n'
     desc += player_bar(player) + '\n'
-    desc += f'Requested - <@!{player.current.requester}>\n'
+    desc += f'Requested - <@!{track.requester}>\n'
 
     await ctx.respond(
         embed=hikari.Embed(
@@ -42,10 +47,16 @@ async def queue(ctx : lightbulb.Context) -> None:
     """Display next (max 10) tracks in queue"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    
-    desc = f'**Current:** [{player.current.title}]({player.current.uri})\n'
+    track = player.current
+
+    desc = '**Current:** '
+    if track.source_name == 'spotify':
+        desc += f'[{track.title} - {track.author}]'
+    else:
+        desc += f'[{track.title}]'
+    desc += f'({track.uri})\n'
     desc += player_bar(player) + '\n'
-    desc += f'Requested - <@!{player.current.requester}>\n\n'
+    desc += f'Requested - <@!{track.requester}>\n'
 
     for i in range(min(len(player.queue), 10)):
         if i == 0:

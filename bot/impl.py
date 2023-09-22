@@ -63,8 +63,12 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         player.add(requester=author_id, track=track, index=index)
         player.set_loop(1) if loop else None
         image_url = track.artwork_url
-        description = '[{0}]({1}) `{2}`\nRequested - <@{3}>'.format(
-            track.title, track.uri, format_time(track.duration), author_id)
+        if track.source_name == 'spotify':
+            description  = '[{0} - {1}]({2}) `{3}`\n Requested - <@{4}>\n'.format(
+                track.title, track.author, track.uri, format_time(track.duration), track.requester)
+        else:
+            description = '[{0}]({1}) `{2}`\nRequested - <@{3}>'.format(
+                track.title, track.uri, format_time(track.duration), author_id)
 
     if result.load_type == LoadType.PLAYLIST:
         result_type = 'playlist'
