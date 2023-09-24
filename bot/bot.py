@@ -10,6 +10,7 @@ from bot.event_handler import EventHandler
 from bot.library.datastore import BotDataStore
 from bot.library.player import CustomPlayer
 from bot.logger.bot_logger import bot_logging_config
+from bot.logger.custom_logger import command_logger
 
 bot = lightbulb.BotApp(
     os.environ['TOKEN'],
@@ -32,6 +33,15 @@ async def on_started_event(event: hikari.StartedEvent) -> None:
         )
     client.add_event_hooks(EventHandler(event.app))
     bot.d = BotDataStore(lavalink=client).to_datastore()
+
+@bot.listen(lightbulb.CommandInvocationEvent)
+async def on_command(event: lightbulb.CommandInvocationEvent) -> None:
+    command_logger.info('\'/%s\' invocated by \'%s\' on guild: %d', 
+        event.command.name, event.context.author.username,event.context.guild_id)
+    
+@bot.listen(lightbulb.CommandInvocationError)
+async def on_command_error(event):
+    pass
 
 @bot.listen(lightbulb.CommandErrorEvent)
 async def on_error(event: lightbulb.CommandErrorEvent) -> None:
