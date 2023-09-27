@@ -39,6 +39,9 @@ def format_time(time: int, option: str = 'a') -> str:
         return '%d:%02d:%02d' % (days * 24 + hours, minutes, seconds)
     elif option == 'm':
         return '%d:%02d' % ((days * 24 + hours) * 60 + minutes, seconds)
+    
+def format_track_duration(track: lavalink.AudioTrack):
+    return '`LIVE`' if track.stream else format_time(track.duration)
 
 def progress_bar(percent: float) -> str:
 

@@ -3,7 +3,7 @@ import lightbulb
 
 from bot.checks import valid_user_voice, player_playing
 from bot.constants import COLOR_DICT
-from bot.utils import format_time, player_bar
+from bot.utils import format_track_duration, player_bar
 from bot.library.autocomplete_choice import AutocompleteChoice 
 
 DELETE_AFTER = 60
@@ -63,7 +63,7 @@ async def queue(ctx : lightbulb.Context) -> None:
             desc += '\n**Up next:**'
         track = player.queue[i]
         desc += '\n' + '{0}. [{1}]({2}) `{3}` <@!{4}>'.format(
-            i+1, track.title, track.uri, format_time(track.duration), track.requester)
+            i+1, track.title, track.uri, format_track_duration(track), track.requester)
 
     await ctx.respond(
         embed=hikari.Embed(
