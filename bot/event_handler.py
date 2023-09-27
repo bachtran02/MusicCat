@@ -4,7 +4,7 @@ import lavalink
 
 from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.constants import COLOR_DICT
-from bot.utils import format_track_duration
+from bot.utils import track_display 
 from bot.logger.custom_logger import track_logger
 
 class EventHandler:
@@ -80,13 +80,6 @@ class EventHandler:
         track = event.track
         track_logger.info('%s - %s - %s', event.track.title, event.track.author, event.track.uri)
         logging.info('Track started on guild: %s', event.player.guild_id)
-
-        if track.source_name == 'spotify':
-            description  = '[{0} - {1}]({2}) `{3}`\n Requested - <@{4}>\n'.format(
-                track.title, track.author, track.uri, format_track_duration(track), track.requester)
-        else:
-            description  = '[{0}]({1}) `{2}`\n Requested - <@{3}>\n'.format(
-                track.title, track.uri, format_track_duration(track), track.requester)
         
         data = self.bot.d.guilds[event.player.guild_id]
         if data.channel_id and data.send_nowplaying:
@@ -103,7 +96,8 @@ class EventHandler:
                     channel=data.channel_id,
                     embed=hikari.Embed(
                         title='**Now playing**',
-                        description = description,
+                        description = '{} \n Requested - <@{}>\n'.format(
+                            track_display(track), track.requester),
                         color = COLOR_DICT['GREEN'],
                     ).set_thumbnail(track.artwork_url)
                 )

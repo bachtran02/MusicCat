@@ -82,3 +82,14 @@ def player_bar(player: lavalink.DefaultPlayer):
         loop_emoji,
         EMOJIS['PLAYER_SHUFFLE'] if player.shuffle else '',
     )
+
+def track_display(track: lavalink.AudioTrack, sources=['spotify'], exclude_duration=False):
+
+    final_string = ''
+    if track.source_name in sources:
+        final_string = '[{} - {}]({})'.format(track.title, track.author, track.uri)
+    else:
+        final_string = '[{}]({})'.format(track.title, track.uri)
+    if not exclude_duration:
+        final_string += ' `{}`'.format(format_track_duration(track))
+    return final_string

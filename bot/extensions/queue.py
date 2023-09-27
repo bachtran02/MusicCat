@@ -3,7 +3,7 @@ import lightbulb
 
 from bot.checks import valid_user_voice, player_playing
 from bot.constants import COLOR_DICT
-from bot.utils import format_track_duration, player_bar
+from bot.utils import player_bar, track_display
 from bot.library.autocomplete_choice import AutocompleteChoice 
 
 DELETE_AFTER = 60
@@ -22,13 +22,14 @@ async def now(ctx: lightbulb.Context) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
 
     track = player.current
-    if track.source_name == 'spotify':
-        desc = f'[{track.title} - {track.author}]'
-    else:
-        desc = f'[{track.title}]'
-    desc += f'({track.uri})\n'
+    desc = track_display(track, exclude_duration=True) + '\n'
     desc += player_bar(player) + '\n'
     desc += f'Requested - <@!{track.requester}>\n'
+
+    if player.queue:
+        desc += '\n**Up next:**'
+        track = player.queue[0]
+        desc += '\n' + track_display(track)
 
     await ctx.respond(
         embed=hikari.Embed(
@@ -50,20 +51,13 @@ async def queue(ctx : lightbulb.Context) -> None:
     track = player.current
 
     desc = '**Current:** '
-    if track.source_name == 'spotify':
-        desc += f'[{track.title} - {track.author}]'
-    else:
-        desc += f'[{track.title}]'
-    desc += f'({track.uri})\n'
+    desc = track_display(track, exclude_duration=True) + '\n'
     desc += player_bar(player) + '\n'
     desc += f'Requested - <@!{track.requester}>\n'
 
     for i in range(min(len(player.queue), 10)):
-        if i == 0:
-            desc += '\n**Up next:**'
-        track = player.queue[i]
-        desc += '\n' + '{0}. [{1}]({2}) `{3}` <@!{4}>'.format(
-            i+1, track.title, track.uri, format_track_duration(track), track.requester)
+        desc += '\n**Up next:**' if i == 0 else ''
+        desc += '\n' + '{}. {}'.format(i + 1, track_display(player.queue[i]))
 
     await ctx.respond(
         embed=hikari.Embed(
