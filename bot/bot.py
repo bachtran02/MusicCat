@@ -39,9 +39,9 @@ async def on_command(event: lightbulb.CommandInvocationEvent) -> None:
     command_logger.info('\'/%s\' invocated by \'%s\' on guild: %d', 
         event.command.name, event.context.author.username,event.context.guild_id)
     
-@bot.listen(lightbulb.CommandInvocationError)
-async def on_command_error(event):
-    pass
+# @bot.listen(lightbulb.CommandInvocationError)
+# async def on_command_error(event):
+#     pass
 
 @bot.listen(lightbulb.CommandErrorEvent)
 async def on_error(event: lightbulb.CommandErrorEvent) -> None:

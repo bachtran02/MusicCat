@@ -60,7 +60,7 @@ async def queue(ctx : lightbulb.Context) -> None:
 
     for i in range(min(len(player.queue), 10)):
         if i == 0:
-            desc += '**Up next:**'
+            desc += '\n**Up next:**'
         track = player.queue[i]
         desc += '\n' + '{0}. [{1}]({2}) `{3}` <@!{4}>'.format(
             i+1, track.title, track.uri, format_time(track.duration), track.requester)

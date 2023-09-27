@@ -51,7 +51,7 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         await _join(bot, guild_id, author_id)
         player = bot.d.lavalink.player_manager.get(guild_id)
 
-    index = 0 if options.get('next', '') == 'True' else -1
+    index = 0 if options.get('next', '') == 'True' else None
     loop = (options.get('loop', '') == 'True')
     shuffle = (options.get('shuffle', '') == 'True')
 
@@ -63,12 +63,13 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         player.add(requester=author_id, track=track, index=index)
         player.set_loop(1) if loop else None
         image_url = track.artwork_url
+        duration = '`LIVE`' if track.stream else format_time(track.duration)
         if track.source_name == 'spotify':
             description  = '[{0} - {1}]({2}) `{3}`\n Requested - <@{4}>\n'.format(
-                track.title, track.author, track.uri, format_time(track.duration), track.requester)
+                track.title, track.author, track.uri, duration, track.requester)
         else:
             description = '[{0}]({1}) `{2}`\nRequested - <@{3}>'.format(
-                track.title, track.uri, format_time(track.duration), author_id)
+                track.title, track.uri, duration, author_id)
 
     if result.load_type == LoadType.PLAYLIST:
         result_type = 'playlist'

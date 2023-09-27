@@ -81,12 +81,13 @@ class EventHandler:
         track_logger.info('%s - %s - %s', event.track.title, event.track.author, event.track.uri)
         logging.info('Track started on guild: %s', event.player.guild_id)
 
+        duration = '`LIVE`' if track.stream else format_time(track.duration)
         if track.source_name == 'spotify':
             description  = '[{0} - {1}]({2}) `{3}`\n Requested - <@{4}>\n'.format(
-                track.title, track.author, track.uri, format_time(track.duration), track.requester)
+                track.title, track.author, track.uri, duration, track.requester)
         else:
             description  = '[{0}]({1}) `{2}`\n Requested - <@{3}>\n'.format(
-                track.title, track.uri, format_time(track.duration), track.requester)
+                track.title, track.uri, duration, track.requester)
         
         data = self.bot.d.guilds[event.player.guild_id]
         if data.channel_id and data.send_nowplaying:
