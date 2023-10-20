@@ -1,14 +1,16 @@
 import os
-import miru
+import redis
+import logging
+
 import hikari
 import lavalink
 import lightbulb
-import logging
+import miru
 
-from bot.nodes import LAVALINK_NODES
-from bot.event_handler import EventHandler
-from bot.library.datastore import BotDataStore
-from bot.library.player import CustomPlayer
+from bot.config import *
+from bot.library.player_view import PlayerView
+from bot.library.event_handler import EventHandler
+from bot.library.mc_player import MusicCatPlayer
 from bot.logger.bot_logger import bot_logging_config
 from bot.logger.custom_logger import command_logger
 
@@ -21,27 +23,50 @@ bot = lightbulb.BotApp(
 
 bot.load_extensions_from('./bot/extensions', must_exist=True)
 
+def setup_lavalink(client: lavalink.Client, event_handler: EventHandler, nodes=[{'name': 'node-1'}]):
+    
+    if not isinstance(client, lavalink.Client):
+        raise TypeError('client must be lavalink.Client type')
+
+    client.add_event_hooks(event_handler)
+    for node in nodes:
+        client.add_node(
+            host=LAVALINK_HOST, port=LAVALINK_PORT,
+            password=LAVALINK_PASSWORD,
+            region=node.get('region'), name=node['name'])
+        
+async def setup_bot():
+
+    redis = bot.d.redis
+    if not redis.ping():    # check if connection to redis is ok
+        raise ConnectionError('Failed to connect to Redis')
+    
+    async for guild in bot.rest.fetch_my_guilds():
+        guild_id = guild.id
+        bot.d.guilds[guild_id] = {'muted': False, 'track_loop': False}
+        if redis.exists(guild_id):
+            view = PlayerView()
+            message_id, channel_id = [int(i) for i in redis.hgetall(guild_id).values()]
+            message = await bot.rest.fetch_message(channel_id, message_id)
+            # TODO: handle different message states
+            await message.edit(components=view)
+            await view.start(message)
+
 @bot.listen(hikari.StartedEvent)
 async def on_started_event(event: hikari.StartedEvent) -> None:
     
-    client = lavalink.Client(user_id=bot.get_me().id, player=CustomPlayer)
-    for node in LAVALINK_NODES:
-        client.add_node(
-            host='lavalink', port=2333,
-            password=os.environ['LAVALINK_PASS'],
-            region=node.get('region'), name=node['name'],
-        )
-    client.add_event_hooks(EventHandler(event.app))
-    bot.d = BotDataStore(lavalink=client).to_datastore()
+    bot.d.guilds = {}
+    bot.d.lavalink = lavalink.Client(user_id=bot.get_me().id, player=MusicCatPlayer)
+    bot.d.redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    
+    setup_lavalink(bot.d.lavalink, EventHandler(event.app), LAVALINK_NODES)
+    await setup_bot()
 
 @bot.listen(lightbulb.CommandInvocationEvent)
 async def on_command(event: lightbulb.CommandInvocationEvent) -> None:
     command_logger.info('\'/%s\' invocated by \'%s\' on guild: %d', 
         event.command.name, event.context.author.username,event.context.guild_id)
     
-# @bot.listen(lightbulb.CommandInvocationError)
-# async def on_command_error(event):
-#     pass
 
 @bot.listen(lightbulb.CommandErrorEvent)
 async def on_error(event: lightbulb.CommandErrorEvent) -> None:
@@ -51,7 +76,9 @@ async def on_error(event: lightbulb.CommandErrorEvent) -> None:
         causes = exception.causes or [exception]
         error_msg = causes[0]
         errors = [cause.__class__.__name__ for cause in causes]
-        logging.error('%s errors on guild %s', errors, event.context.guild_id)   
+        logging.error('%s errors on guild %s', errors, event.context.guild_id) 
+    # elif isinstance(exception, lightbulb.CommandInvocationError):
+    #     raise exception
     else:
         raise exception
     await event.context.respond(error_msg, flags=hikari.MessageFlag.EPHEMERAL)

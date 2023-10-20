@@ -19,11 +19,19 @@ services:
     ports:
       - 2333:2333
 
+  redis:
+    image: 'bitnami/redis:latest'
+    container_name: music_redis
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - 6379:6379
+
   bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bot
+    container_name: music_cat
     depends_on:
       - lavalink
     volumes:

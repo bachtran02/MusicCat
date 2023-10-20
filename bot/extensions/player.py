@@ -1,14 +1,13 @@
 import re
 import logging
 
-import lavalink
 import hikari
+import lavalink
 import lightbulb
 
 from bot.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import COLOR_DICT, EFFECT_NIGHTCORE, EFFECT_BASS_BOOST
-from bot.utils import player_bar
-from bot.components import PlayerView
+from bot.library.player_view import PlayerView
 
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Player', 'Player commands')
@@ -175,16 +174,16 @@ async def loop(ctx:lightbulb.Context) -> None:
 @lightbulb.add_checks(
     lightbulb.guild_only, valid_user_voice, player_playing,
 )
-@lightbulb.command('shuffle', 'Enable/disable shuffle')
+@lightbulb.command('shuffle', 'Shuffle queue')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def shuffle(ctx:lightbulb.Context) -> None:
     """Shuffle queue"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    player.set_shuffle(not player.shuffle)
+    player.shuffle_queue()
    
     await ctx.respond(embed=hikari.Embed(
-        description = f'🔀 {("Shuffle enabled" if player.shuffle else "Shuffle disabled")}',
+        description = f'🔀 Queue shuffled!',
         colour = COLOR_DICT['BLUE']
     ), delete_after=DELETE_AFTER)
 
@@ -227,7 +226,6 @@ async def effects(ctx : lightbulb.Context) -> None:
     logging.info('`%s` added to player on guild: %s', effect, ctx.guild_id)
 
 
-"""
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, player_playing
@@ -235,25 +233,18 @@ async def effects(ctx : lightbulb.Context) -> None:
 @lightbulb.command('player', 'Interactive guild music player')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def player(ctx: lightbulb.Context) -> None:
-    \\\"""Interactive guild music player\\\"""
+    """Interactive guild music player"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-
-    desc = f'**Current:** [{player.current.title}]({player.current.uri})\n'
-    desc += player_bar(player) + '\n'
-    desc += f'Requested - <@!{player.current.requester}>\n\n'
+    redis = plugin.bot.d.redis
 
     view = PlayerView()
+    message = await ctx.respond(components=view, embed=view.get_embed(player))
+    await view.start(message)
 
-    message = await ctx.respond(
-        components=view,
-        embed=hikari.Embed(
-            description=desc, color=COLOR_DICT['GREEN']
-        ).set_thumbnail(player.current.artwork_url))
-
-    await view.start(message)  # Start listening for interactions
-    await view.wait()
-"""
+    # save message to redis
+    msg = await message.message()
+    redis.hset(ctx.guild_id, mapping={'message': msg.id, 'channel': msg.channel_id})
 
 
 def load(bot: lightbulb.BotApp) -> None:

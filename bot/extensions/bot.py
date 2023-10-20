@@ -45,28 +45,24 @@ async def leave(ctx: lightbulb.Context) -> None:
 
 
 @plugin.command()
-@lightbulb.add_checks(
-    lightbulb.guild_only, valid_user_voice, player_connected,
-)
+@lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.command('mute', 'Disable sending message on track start')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def mute(ctx: lightbulb.Context) -> None:
     """Disable sending message on track start"""
 
-    plugin.bot.d.guilds[ctx.guild_id].send_nowplaying = False
+    plugin.bot.d.guilds[ctx.guild_id]['muted'] = True
     await ctx.respond('Bot muted!', delete_after=DELETE_AFTER)
 
 
 @plugin.command()
-@lightbulb.add_checks(
-    lightbulb.guild_only, valid_user_voice, player_connected,
-)
+@lightbulb.add_checks(lightbulb.guild_only)
 @lightbulb.command('unmute', 'Enable sending message on track start')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def unmute(ctx: lightbulb.Context) -> None:
     """Enable sending message on track start"""
 
-    plugin.bot.d.guilds[ctx.guild_id].send_nowplaying = True
+    plugin.bot.d.guilds[ctx.guild_id]['muted'] = False
     await ctx.respond('Bot unmuted!', delete_after=DELETE_AFTER)
 
 

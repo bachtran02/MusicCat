@@ -4,7 +4,7 @@ import lightbulb
 
 from bot.checks import valid_user_voice
 from bot.impl import _play, _search
-from bot.library.autocomplete_choice import AutocompleteChoice
+from bot.library.hikari.autocomplete_choice import AutocompleteChoice
 from bot.library.lavasearch import LavasearchResult
 
 DELETE_AFTER = 60

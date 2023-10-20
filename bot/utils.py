@@ -60,7 +60,6 @@ def player_bar(player: lavalink.DefaultPlayer):
         'LOOP_QUEUE':       '🔁',
         'PLAYER_PLAY':      '⏸️',
         'PLAYER_PAUSED':    '▶️',
-        'PLAYER_SHUFFLE':   '🔀',
     }
 
     loop_emoji, playtime, player_bar = '', '', ''
@@ -75,13 +74,9 @@ def player_bar(player: lavalink.DefaultPlayer):
     elif player.loop == player.LOOP_QUEUE:
         loop_emoji = EMOJIS['LOOP_QUEUE']
 
-    return '{0} {1} `{2}` {3}{4}'.format(
+    return '{0} {1} `{2}` {3}'.format(
         EMOJIS['PLAYER_PAUSED'] if player.paused else EMOJIS['PLAYER_PLAY'],
-        player_bar,
-        playtime,
-        loop_emoji,
-        EMOJIS['PLAYER_SHUFFLE'] if player.shuffle else '',
-    )
+        player_bar, playtime, loop_emoji)
 
 def track_display(track: lavalink.AudioTrack, sources=['spotify'], exclude_duration=False):
 

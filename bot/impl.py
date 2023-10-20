@@ -1,13 +1,13 @@
 import re
-import logging
 from random import randrange
+import logging
+
 import hikari
 import lavalink
 from lavalink import LoadType
 
 from bot.constants import COLOR_DICT
-from bot.library.datastore import GuildDataStore
-from bot.utils import format_track_duration
+from bot.utils import track_display
 
 URL_RX = re.compile(r'https?://(?:www\.)?.+')
 
@@ -18,7 +18,6 @@ async def _join(bot, guild_id: int, author_id: int):
     channel_id = voice_state[0].channel_id  # voice channel user is in
 
     bot.d.lavalink.player_manager.create(guild_id=guild_id)
-    bot.d.guilds[guild_id] = GuildDataStore()
     try:
         await bot.update_voice_state(guild_id, channel_id, self_deaf=True)
     except RuntimeError as e:
@@ -52,23 +51,18 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         player = bot.d.lavalink.player_manager.get(guild_id)
 
     index = 0 if options.get('next', '') == 'True' else None
-    loop = (options.get('loop', '') == 'True')
-    shuffle = (options.get('shuffle', '') == 'True')
+    loop = options.get('loop', '') == 'True'
+    shuffle = options.get('shuffle', '') == 'True'
 
     result_type, description, image_url, num_tracks = None, None, None, 0
-    if result.load_type in [LoadType.TRACK, LoadType.SEARCH]:
+    if result.load_type in (LoadType.TRACK, LoadType.SEARCH):
         result_type, num_tracks = 'track', 1
         track = result.tracks[0]
-        track.extra['requester'] = author_id
+        track.extra['requester'], track.extra['channel_id'] = author_id, text_id
         player.add(requester=author_id, track=track, index=index)
         player.set_loop(1) if loop else None
         image_url = track.artwork_url
-        if track.source_name == 'spotify':
-            description  = '[{0} - {1}]({2}) `{3}`\n Requested - <@{4}>\n'.format(
-                track.title, track.author, track.uri, format_track_duration(track), track.requester)
-        else:
-            description = '[{0}]({1}) `{2}`\nRequested - <@{3}>'.format(
-                track.title, track.uri, format_track_duration(track), author_id)
+        description = track_display(track) + f'\nRequested - <@!{track.requester}>\n'
 
     if result.load_type == LoadType.PLAYLIST:
         result_type = 'playlist'
@@ -94,15 +88,14 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
                 description = '[{0} - {1}]({2}) `{3} track(s)`\nRequested - <@{4}>'.format(
                     result.playlist_info.name, plugin_info.get('author'), playlist_url, num_tracks, author_id)
             else:
-                raise BaseException('Unknown result type!')
+                raise Exception('Unknown result type!')
         while tracks:
             pop_at = randrange(len(tracks)) if shuffle else 0
             track = tracks.pop(pop_at)
-            track.extra['requester'] = author_id
+            track.extra['requester'], track.extra['channel_id'] = author_id, text_id
             player.add(requester=author_id, track=track)
         player.set_loop(2) if loop else None
 
-    bot.d.guilds[guild_id].channel_id = text_id
     if not player.is_playing:
         await player.play()
 
