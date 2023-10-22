@@ -7,7 +7,7 @@ from bot.constants import COLOR_DICT
 from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.library.player_view import PlayerView
 from bot.logger.custom_logger import track_logger
-from bot.utils import track_display, player_bar 
+from bot.utils import track_display
 
 class EventHandler:
     """Events from the Lavalink server"""
@@ -132,7 +132,17 @@ class EventHandler:
             return False
         
         message_id, channel_id = [int(i) for i in redis.hgetall(guild_id).values()]
-        message = await self.bot.rest.fetch_message(channel_id, message_id)
-        # TODO: handle different states of message
-        await message.edit(embed=PlayerView.get_embed(event.player))
+        try:
+            message = await self.bot.rest.fetch_message(channel_id, message_id)
+            if not message.embeds:
+                raise ValueError
+        except Exception:
+            redis.delete(guild_id)
+            return False
+        
+        if isinstance(event, lavalink.QueueEndEvent):
+            embed = PlayerView.EMPTY_EMBED
+        else:
+            embed = PlayerView.get_embed(event.player)
+        await message.edit(embed=embed)
         return True

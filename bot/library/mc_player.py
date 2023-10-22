@@ -98,6 +98,7 @@ class MusicCatPlayer(DefaultPlayer):
         
     async def stop(self):
         await self.node.update_player(self._internal_id, encoded_track=None)
+        await self.client._dispatch_event(QueueEndEvent(self))
         await self.clear()
 
     def shuffle_queue(self):
