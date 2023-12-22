@@ -2,38 +2,37 @@ version: '3.8'
 
 services:
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:4.0.0-beta.3
-    container_name: lavalink
+    image: ghcr.io/lavalink-devs/lavalink:4.0.0
+    container_name: bot-lavalink
     restart: unless-stopped
-    # entrypoint: ["java", "-Djdk.tls.client.protocols=TLSv1.1,TLSv1.2", "-Xmx6G", "-jar", "Lavalink.jar"]
     environment:
-      # - _JAVA_OPTIONS=-Xmx6G
+      - _JAVA_OPTIONS=-Xmx2G
       - SERVER_PORT=2333
       - LAVALINK_SERVER_PASSWORD=youshallnotpass 
     volumes:
-      - ./LavalinkServer/logs/:/opt/Lavalink/logs/  # run `sudo chown -R 322:322 logs`
-      - ./LavalinkServer/plugins/:/opt/Lavalink/plugins/  # run `sudo chown -R 322:322 plugins`
-      - ./LavalinkServer/application.yml:/opt/Lavalink/application.yml
+      - ./Lavalink/logs/:/opt/Lavalink/logs/  # run `sudo chown -R 322:322 logs`
+      - ./Lavalink/plugins/:/opt/Lavalink/plugins/  # run `sudo chown -R 322:322 plugins`
+      - ./Lavalink/application.yml:/opt/Lavalink/application.yml
     ports:
       - 2333:2333
 
-  redis:
-    image: 'bitnami/redis:latest'
-    container_name: music_redis
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    ports:
-      - 6379:6379
-    restart: unless-stopped
+  # redis:
+  #   image: 'bitnami/redis:latest'
+  #   container_name: bot-redis
+  #   environment:
+  #     - ALLOW_EMPTY_PASSWORD=yes
+  #   ports:
+  #     - 6379:6379
+  #   restart: unless-stopped
 
   bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: music_cat
+    container_name: MusicCat
     depends_on:
       - lavalink
-      - redis
+      # - redis
     volumes:
       - ./logs:/logs
     restart: unless-stopped

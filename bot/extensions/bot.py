@@ -8,13 +8,13 @@ from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Bot', 'Bot commands')
 
-
-# @plugin.command()
-# @lightbulb.command('ping', 'Test command')
-# @lightbulb.implements(lightbulb.SlashCommand)
-# async def ping(ctx: lightbulb.Context) -> None:
-#     await ctx.respond('pong!', flags=hikari.MessageFlag.EPHEMERAL)
-
+"""
+@plugin.command()
+@lightbulb.command('ping', 'Test command')
+@lightbulb.implements(lightbulb.SlashCommand)
+async def ping(ctx: lightbulb.Context) -> None:
+    await ctx.respond('pong!', flags=hikari.MessageFlag.EPHEMERAL)
+"""
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.guild_only)

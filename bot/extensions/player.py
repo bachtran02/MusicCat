@@ -6,8 +6,7 @@ import lavalink
 import lightbulb
 
 from bot.checks import valid_user_voice, player_playing, player_connected
-from bot.constants import COLOR_DICT, EFFECT_NIGHTCORE, EFFECT_BASS_BOOST
-from bot.library.player_view import PlayerView
+from bot.constants import EFFECT_NIGHTCORE, EFFECT_BASS_BOOST
 
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Player', 'Player commands')
@@ -25,9 +24,8 @@ async def skip(ctx: lightbulb.Context) -> None:
     prev_track = await player.skip()
 
     await ctx.respond(embed=hikari.Embed(
-        description = f'⏭️ Track skipped: [{prev_track.title}]({prev_track.uri})',
-        colour = COLOR_DICT['RED']
-    ), delete_after=DELETE_AFTER)
+            description = f'⏭️ Track skipped: [{prev_track.title}]({prev_track.uri})'),
+        delete_after=DELETE_AFTER)
     logging.info('Track skipped on guild: %s', ctx.guild_id)
 
 
@@ -44,9 +42,7 @@ async def pause(ctx: lightbulb.Context) -> None:
     await player.set_pause(True)
 
     await ctx.respond(embed=hikari.Embed(
-        description = '⏸️ Paused player',
-        colour = COLOR_DICT['YELLOW']
-    ), delete_after=DELETE_AFTER)
+        description = '⏸️ Paused player'), delete_after=DELETE_AFTER)
     logging.info('Track paused on guild: %s', ctx.guild_id)
 
 
@@ -63,9 +59,7 @@ async def resume(ctx: lightbulb.Context) -> None:
     await player.set_pause(False)
 
     await ctx.respond(embed=hikari.Embed(
-        description = '▶️ Resumed player',
-        colour = COLOR_DICT['GREEN']
-    ), delete_after=DELETE_AFTER)
+        description = '▶️ Resumed player'), delete_after=DELETE_AFTER)
     logging.info('Track resumed on guild: %s', ctx.guild_id)
 
 
@@ -83,9 +77,7 @@ async def stop(ctx: lightbulb.Context) -> None:
     plugin.bot.d.guilds[ctx.guild_id].clear()
 
     await ctx.respond(embed=hikari.Embed(
-        description = '⏹️ Stopped playing',
-        colour = COLOR_DICT['RED']
-    ), delete_after=DELETE_AFTER)
+        description = '⏹️ Stopped playing'), delete_after=DELETE_AFTER)
     logging.info('Player stopped on guild: %s', ctx.guild_id)
 
 
@@ -104,9 +96,7 @@ async def restart(ctx : lightbulb.Context) -> None:
         return
     await player.seek(0)
     await ctx.respond(embed=hikari.Embed(
-        description = '⏪ Track restarted!',
-        colour = COLOR_DICT['BLUE']
-    ), delete_after=DELETE_AFTER)
+        description = '⏪ Track restarted!'), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -123,21 +113,22 @@ async def seek(ctx : lightbulb.Context) -> None:
     if not player.current.is_seekable:
         await ctx.respond('Current track is not seekable!', flags=hikari.MessageFlag.EPHEMERAL)
         return
-
-    pos = ctx.options.position
-    pos_rx = re.compile(r'\d+:\d{2}$')
-
-    if not (pos_rx.match(pos) and int(pos.split(':')[1]) < 60):
+    
+    def parse_duration(position: str):
+        """Convert string position to milliseconds"""
+        
+        pos_rx = re.compile(r'\d+:\d{2}$')
+        if not (pos_rx.match(position) and int(position.split(':')[1]) < 60):
+            return False
+        return list(int(x) for x in position.split(':'))
+    
+    if not (parsed := parse_duration(ctx.options.position)):
         await ctx.respond('Invalid position!', flags=hikari.MessageFlag.EPHEMERAL)
         return
     
-    (minute, second) = (int(x) for x in pos.split(':'))
-    ms = minute * 60 * 1000 + second * 1000
-    await player.seek(ms)
-
+    await player.seek(parsed[0] * 60 * 1000 + parsed[1] * 1000)
     await ctx.respond(embed=hikari.Embed(
-        description = f'⏩ Player moved to `{minute}:{second:02}`',
-        colour = COLOR_DICT['BLUE']
+        description = f'⏩ Player moved to `{parsed[0]}:{parsed[1]:02}`',
     ), delete_after=DELETE_AFTER)
 
 
@@ -165,9 +156,7 @@ async def loop(ctx:lightbulb.Context) -> None:
         body = '⏭️ Disable loop!'
     
     await ctx.respond(embed=hikari.Embed(
-        description = body,
-        colour = COLOR_DICT['BLUE']
-    ), delete_after=DELETE_AFTER)
+        description=body), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -183,9 +172,7 @@ async def shuffle(ctx:lightbulb.Context) -> None:
     player.shuffle_queue()
    
     await ctx.respond(embed=hikari.Embed(
-        description = f'🔀 Queue shuffled!',
-        colour = COLOR_DICT['BLUE']
-    ), delete_after=DELETE_AFTER)
+        description = f'🔀 Queue shuffled!'), delete_after=DELETE_AFTER)
 
 
 @plugin.command()
@@ -220,12 +207,10 @@ async def effects(ctx : lightbulb.Context) -> None:
     await player.set_filter(equalizer)
     await player.set_filter(timescale)
     await ctx.respond(embed=hikari.Embed(
-        description = f'Effect added: `{effect}`',
-        colour = COLOR_DICT['BLUE']
-    ), delete_after=DELETE_AFTER)
+        description = f'Effect added: `{effect}`'), delete_after=DELETE_AFTER)
     logging.info('`%s` added to player on guild: %s', effect, ctx.guild_id)
 
-
+"""
 @plugin.command()
 @lightbulb.add_checks(
     lightbulb.guild_only, player_playing
@@ -233,7 +218,7 @@ async def effects(ctx : lightbulb.Context) -> None:
 @lightbulb.command('player', 'Interactive guild music player')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def player(ctx: lightbulb.Context) -> None:
-    """Interactive guild music player"""
+    \"""Interactive guild music player\"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     redis = plugin.bot.d.redis
@@ -245,7 +230,7 @@ async def player(ctx: lightbulb.Context) -> None:
     # save message to redis
     msg = await message.message()
     redis.hset(ctx.guild_id, mapping={'message': msg.id, 'channel': msg.channel_id})
-
+"""
 
 def load(bot: lightbulb.BotApp) -> None:
     bot.add_plugin(plugin)

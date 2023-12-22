@@ -20,10 +20,10 @@ class SearchResultItem():
 class LavasearchResult:
 
     ITEM_TYPE = {
-        'tracks':       AudioTrack,
-        'playlists':    SearchResultItem,
-        'artists':      SearchResultItem,
-        'albums':       SearchResultItem,
+        'tracks'    :  List[AudioTrack],
+        'playlists' :  List[SearchResultItem],
+        'artists'   :  List[SearchResultItem],
+        'albums'    :  List[SearchResultItem],
     }
 
     def __init__(self, raw, tracks: List = [], albums: List = [], artists: List = [],
@@ -33,11 +33,6 @@ class LavasearchResult:
         self.albums: List[SearchResultItem] = [SearchResultItem.from_dict(raw_item) for raw_item in albums]
         self.artists: List[SearchResultItem] = [SearchResultItem.from_dict(raw_item) for raw_item in artists]
         self.playlists: List[SearchResultItem] = [SearchResultItem.from_dict(raw_item) for raw_item in playlists]
-
-    def get_first_result(self):
-        for item_type in self.raw:
-            if self.raw[item_type]:
-                return self.ITEM_TYPE[item_type].from_dict(self.raw[item_type][0])
 
     @classmethod
     def from_dict(cls, mapping: dict):

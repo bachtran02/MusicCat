@@ -1,59 +1,56 @@
 import hikari
 import miru
 
-from bot.constants import COLOR_DICT
-from bot.utils import player_bar, track_display
+from hikari.emojis import CustomEmoji
+
+from bot.constants import *
+from bot.utils import format_time
 
 class PlayerView(miru.View):
-
-    EMPTY_EMBED = hikari.Embed(
-        title='Nothing to play!',
-        description='Play something',
-        color=COLOR_DICT['YELLOW'])
     
     @staticmethod
     def get_embed(player) -> hikari.Embed:
 
-        if not player or not player.is_playing:
-            return PlayerView.EMPTY_EMBED
-
+        assert player.is_playing is True
+        
+        current = player.current
+        
         return hikari.Embed(
-            description='**Current:** {} \n {} \n Requested - <@!{}>'.format(
-                track_display(player.current, exclude_duration=True),
-                player_bar(player), player.current.requester),
-            color=COLOR_DICT['GREEN']).set_thumbnail(player.current.artwork_url)
+            description='[{}]({})\n{} `{}`\n\n<@!{}>'.format(
+                current.title, current.uri, current.author,
+                'LIVE' if current.stream else format_time(current.duration), 
+                current.requester)
+        ).set_thumbnail(player.current.artwork_url)
     
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
     def get_player(self, guild_id: int):
         return self.bot.d.lavalink.player_manager.get(guild_id)
-    
-    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏮️')
-    async def play_backward(self, button: miru.Button, ctx: miru.ViewContext) -> None:
-        player = self.get_player(ctx.guild_id)
-        await player.play_backward()
-        await ctx.edit_response(embed=self.get_embed(player))
 
-    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏯️')
+    async def update_message(self):
+        await self.message.edit(components=self)
+    
+    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji=CustomEmoji.parse(EMOJI_PLAY_PREVIOUS))
+    async def play_previous(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+        player = self.get_player(ctx.guild_id)
+        await player.play_previous()
+
+    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji=CustomEmoji.parse(EMOJI_PAUSE_PLAYER))
     async def play_pause(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+        
         player = self.get_player(ctx.guild_id)
         await player.set_pause(not player.paused)
-        await ctx.edit_response(embed=self.get_embed(player))
+        emoji = EMOJI_RESUME_PLAYER if player.paused else EMOJI_PAUSE_PLAYER
+        button.emoji = CustomEmoji.parse(emoji)
+        await self.update_message()
 
-    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏹️')
+    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji=CustomEmoji.parse(EMOJI_STOP_PLAYER))
     async def stop(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         player = self.get_player(ctx.guild_id)
         await player.stop()
-        await ctx.edit_response(embed=self.get_embed(player))
 
-    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='⏭️')
-    async def skip(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+    @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji=CustomEmoji.parse(EMOJI_PLAY_NEXT))
+    async def play_next(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         player = self.get_player(ctx.guild_id)
         await player.skip()
-        await ctx.edit_response(embed=self.get_embed(player))
-
-    # @miru.button(style=hikari.ButtonStyle.SECONDARY, emoji='❌')
-    # async def remove(self, button: miru.Button, ctx: miru.ViewContext) -> None:
-    #     await ctx.message.delete()
-    #     self.stop()
