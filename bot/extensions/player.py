@@ -169,10 +169,11 @@ async def shuffle(ctx:lightbulb.Context) -> None:
     """Shuffle queue"""
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    player.shuffle_queue()
+    player.set_shuffle(not player.shuffle)
    
     await ctx.respond(embed=hikari.Embed(
-        description = f'🔀 Queue shuffled!'), delete_after=DELETE_AFTER)
+        description = '🔀 Shuffle on' if player.shuffle else '🔀 Shuffle off'
+        ), delete_after=DELETE_AFTER)
 
 
 @plugin.command()

@@ -20,6 +20,7 @@ class MusicCatPlayer(DefaultPlayer):
                    no_replace: bool = MISSING,
                    volume: int = MISSING,
                    pause: bool = False,
+                   index: int = MISSING,    # play track at given index bypassing shuffle mode 
                    **kwargs):
         
         if isinstance(no_replace, bool) and no_replace and self.is_playing:
@@ -48,7 +49,14 @@ class MusicCatPlayer(DefaultPlayer):
                 await self.client._dispatch_event(QueueEndEvent(self))
                 return
 
-            pop_at = randrange(len(self.queue)) if self.shuffle else 0
+            if index is not MISSING:
+                assert isinstance(index, int) and 0 <= index < len(self.queue)
+                pop_at = index
+            elif self.shuffle:
+                pop_at = randrange(len(self.queue))
+            else:
+                pop_at = 0
+
             track = self.queue.pop(pop_at)
             self.recently_played.append(track)
 
@@ -85,7 +93,7 @@ class MusicCatPlayer(DefaultPlayer):
         self.queue = self.recently_played[-2:] + self.queue
         self.recently_played = self.recently_played[:-2]
 
-        await self.play()
+        await self.play(index=0)
 
     async def skip(self):
         """|coro|
