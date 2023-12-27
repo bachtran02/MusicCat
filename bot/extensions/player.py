@@ -5,7 +5,7 @@ import hikari
 import lavalink
 import lightbulb
 
-from bot.checks import valid_user_voice, player_playing, player_connected
+from bot.library.checks import valid_user_voice, player_playing, player_connected
 from bot.constants import EFFECT_NIGHTCORE, EFFECT_BASS_BOOST
 
 DELETE_AFTER = 60

@@ -1,11 +1,10 @@
 import logging
 
-import hikari
 import lavalink
 import miru
 
-from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.library.view import PlayerView
+from .classes.events import VoiceServerUpdate, VoiceStateUpdate
 from bot.logger.custom_logger import track_logger
 
 class EventHandler:

@@ -2,11 +2,11 @@ import hikari
 import lavalink
 import lightbulb
 
-from bot.checks import valid_user_voice
-from bot.impl import _play, _get_tracks, _get_autocomplete
-from bot.library.hikari.autocomplete_choice import AutocompleteChoice
-from bot.library.lavasearch import LavasearchResult
-from bot.library.sources import Spotify, Deezer, YouTube, YouTubeMusic
+from bot.library.checks import valid_user_voice
+from bot.library.base import _play, _get_tracks, _get_autocomplete
+from bot.library.classes.choice import AutocompleteChoice
+from bot.library.classes.lavasearch import LavasearchResult
+from bot.library.classes.sources import Spotify, Deezer, YouTube, YouTubeMusic
 
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Play', 'Commands to play music')

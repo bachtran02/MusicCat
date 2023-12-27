@@ -1,9 +1,9 @@
 import hikari
 import lightbulb
 
-from bot.checks import valid_user_voice, player_playing
-from bot.library.sources import Spotify, Deezer
-from bot.library.hikari.autocomplete_choice import AutocompleteChoice 
+from bot.library.checks import valid_user_voice, player_playing
+from bot.library.classes.choice import AutocompleteChoice 
+from bot.library.classes.sources import Spotify, Deezer
 from bot.utils import player_bar, format_time
 
 DELETE_AFTER = 60

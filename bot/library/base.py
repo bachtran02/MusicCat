@@ -6,9 +6,8 @@ import hikari
 import lavalink
 from lavalink import LoadType
 
-from bot.constants import COLOR_DICT
 from bot.utils import format_time
-from bot.library.sources import *
+from .classes.sources import *
 
 URL_RX = re.compile(r'https?://(?:www\.)?.+')
 

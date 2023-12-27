@@ -1,5 +1,4 @@
 import os
-import redis
 import logging
 
 import hikari
@@ -8,8 +7,8 @@ import lightbulb
 import miru
 
 from bot.config import *
-from bot.library.event_handler import EventHandler
-from bot.library.mc_player import MusicCatPlayer
+from .library.handler import EventHandler
+from bot.library.player import MusicCatPlayer
 from bot.logger.bot_logger import bot_logging_config
 from bot.logger.custom_logger import command_logger
 

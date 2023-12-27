@@ -1,11 +1,9 @@
-BASE_YT_URL = 'https://www.youtube.com'
-
-COLOR_DICT = {
-    'RED':      0xd25557,
-    'BLUE':     0x00E7FF ,
-    'YELLOW':   0xffff5c,
-    'GREEN':    0x76ffa1,
-}
+"""
+HEX_COLOR_RED       = 0xd25557
+HEX_COLOR_BLUE      = 0x00E7FF
+HEX_COLOR_YELLOW    = 0xffff5c
+HEX_COLOR_GREEN     = 0x76ffa1
+"""
 
 EFFECT_NIGHTCORE = {
     'equalizer': {

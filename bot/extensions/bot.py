@@ -1,9 +1,9 @@
 import hikari
 import lightbulb
 
-from bot.impl import _join
-from bot.checks import valid_user_voice, player_connected
-from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
+from bot.library.base import _join
+from bot.library.checks import valid_user_voice, player_connected
+from bot.library.classes.events import VoiceServerUpdate, VoiceStateUpdate
 
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Bot', 'Bot commands')

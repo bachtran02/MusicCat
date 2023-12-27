@@ -2,18 +2,15 @@ import hikari
 import lightbulb
 
 from bot.utils import format_time
-from bot.constants import COLOR_DICT
 
 plugin = lightbulb.Plugin('Lavalink', 'Lavalink commands')
 
-# TODO
-"""
 @plugin.command()
 @lightbulb.add_checks(lightbulb.owner_only)
 @lightbulb.command('stats', 'Display lavalink stats')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def stats(ctx: lightbulb.Context) -> None:
-    \"""Display lavalink stats.\"""
+    """Display lavalink stats."""
 
     node_manager = plugin.bot.d.lavalink.node_manager
     body = '**Nodes:**' + '\n'
@@ -32,9 +29,7 @@ async def stats(ctx: lightbulb.Context) -> None:
         body += 'No stats available' + '\n'
 
     await ctx.respond(embed=hikari.Embed(
-        title = '📊 Lavalink Stats',
-        description = body,
-        colour = COLOR_DICT['BLUE']))
+        title = '📊 Lavalink Stats', description = body))
 
 
 @plugin.command()
@@ -42,7 +37,7 @@ async def stats(ctx: lightbulb.Context) -> None:
 @lightbulb.command('info', 'Display lavalink info')
 @lightbulb.implements(lightbulb.SlashCommand)
 async def info(ctx: lightbulb.Context) -> None:
-    \"""Display lavalink info.\"""
+    """Display lavalink info."""
 
     node_manager = plugin.bot.d.lavalink.node_manager
     if nodes := node_manager.nodes:
@@ -51,13 +46,10 @@ async def info(ctx: lightbulb.Context) -> None:
         for item in info:
             body += '- {}: `{}`\n'.format(item, info[item])
     else:
-        body = 'No info available' + '\n' 
+        body = 'No info available\n' 
 
     await ctx.respond(embed=hikari.Embed(
-        title = '📊 Lavalink Info',
-        description = body,
-        colour = COLOR_DICT['BLUE']))
-"""
+        title = '📊 Lavalink Info',description = body))
 
 def load(bot: lightbulb.BotApp) -> None:
     bot.add_plugin(plugin)
