@@ -7,6 +7,10 @@ from lavalink.common import MISSING
 class MusicCatPlayer(DefaultPlayer):
     """Custom lavalink player for MusicCat"""
 
+    LOOP_NONE: int = 0
+    LOOP_QUEUE: int = 1
+    LOOP_SINGLE: int = 2
+    
     def __init__(self, guild_id: int, node):
         super().__init__(guild_id, node)
         self.recently_played: List[AudioTrack] = []
@@ -30,12 +34,12 @@ class MusicCatPlayer(DefaultPlayer):
             track = AudioTrack(track, 0)
 
         if self.loop > 0 and self.current:
-            if self.loop == 1:
+            if self.loop == self.LOOP_SINGLE:
                 if track is not None:
                     self.queue.insert(0, self.current)
                 else:
                     track = self.current
-            elif self.loop == 2:
+            elif self.loop == self.LOOP_QUEUE:
                 self.queue.append(self.current)
 
         self._last_position = 0
