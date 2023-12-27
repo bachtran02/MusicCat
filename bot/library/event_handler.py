@@ -2,9 +2,10 @@ import logging
 
 import hikari
 import lavalink
+import miru
 
 from bot.library.events import VoiceServerUpdate, VoiceStateUpdate
-from bot.library.player_view import PlayerView
+from bot.library.view import PlayerView
 from bot.logger.custom_logger import track_logger
 
 class EventHandler:
@@ -18,6 +19,7 @@ class EventHandler:
         async def delete_message(channel_id: int, message_id: int):
             message = await self.bot.rest.fetch_message(channel_id, message_id)
             await message.delete()
+            miru.get_view(message).stop()
         
         guild_id = event.player.guild_id
         player = self.bot.d.lavalink.player_manager.get(guild_id)
@@ -28,7 +30,7 @@ class EventHandler:
 
         if isinstance(event, lavalink.TrackStartEvent):
         
-            view = PlayerView()
+            view = PlayerView(guild_id=guild_id)
             message = await self.bot.rest.create_message(
                 channel=player.textchannel_id,
                 embed=PlayerView.get_embed(player),
