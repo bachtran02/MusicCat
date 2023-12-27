@@ -3,7 +3,6 @@ version: '3.8'
 services:
   lavalink:
     image: ghcr.io/lavalink-devs/lavalink:4.0.0
-    container_name: bot-lavalink
     restart: unless-stopped
     environment:
       - _JAVA_OPTIONS=-Xmx2G
@@ -16,15 +15,6 @@ services:
     ports:
       - 2333:2333
 
-  # redis:
-  #   image: 'bitnami/redis:latest'
-  #   container_name: bot-redis
-  #   environment:
-  #     - ALLOW_EMPTY_PASSWORD=yes
-  #   ports:
-  #     - 6379:6379
-  #   restart: unless-stopped
-
   bot:
     build:
       context: .
@@ -32,7 +22,6 @@ services:
     container_name: MusicCat
     depends_on:
       - lavalink
-      # - redis
     volumes:
       - ./logs:/logs
     restart: unless-stopped
