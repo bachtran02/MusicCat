@@ -29,6 +29,7 @@ class EventHandler:
             except Exception as e:
                 logging.error('Failed to delete old player: %s', e)
                 return
+        player.message_id, player.text_channel = None, None
 
         if isinstance(event, lavalink.TrackStartEvent):
         
