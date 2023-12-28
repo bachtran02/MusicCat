@@ -28,7 +28,7 @@ async def play(ctx: lightbulb.Context) -> None:
     result = await _get_tracks(lavalink=plugin.bot.d.lavalink, query=ctx.options.query)
     if (embed := await _play(
             bot=plugin.bot, result=result, guild_id=ctx.guild_id,
-            author_id=ctx.author.id, textchannel_id=ctx.channel_id,
+            author_id=ctx.author.id, text_channel=ctx.channel_id,
             play_next=eval(ctx.options.next), loop=eval(ctx.options.loop),
             shuffle=eval(ctx.options.shuffle))):
         await ctx.respond(embed=embed, delete_after=DELETE_AFTER)
@@ -94,7 +94,7 @@ async def search(ctx: lightbulb.Context) -> None:
     result = await _get_tracks(lavalink=plugin.bot.d.lavalink, query=ctx.options.query)
     if (embed := await _play(
             bot=plugin.bot, result=result, guild_id=ctx.guild_id,
-            author_id=ctx.author.id, textchannel_id=ctx.channel_id,
+            author_id=ctx.author.id, text_channel=ctx.channel_id,
             play_next=eval(ctx.options.next), loop=eval(ctx.options.loop),
             shuffle=eval(ctx.options.shuffle))):
         await ctx.respond(embed=embed, delete_after=DELETE_AFTER)

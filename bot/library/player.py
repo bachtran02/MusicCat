@@ -15,7 +15,8 @@ class MusicCatPlayer(DefaultPlayer):
         super().__init__(guild_id, node)
         self.recently_played: List[AudioTrack] = []
         self.message_id = None
-        self.textchannel_id = None
+        self.text_channel = None
+        self.send_channel = None
 
     async def play(self,
                    track: Optional[Union[AudioTrack, 'DeferredAudioTrack', Dict[str, Union[Optional[str], bool, int]]]] = None,
@@ -116,9 +117,10 @@ class MusicCatPlayer(DefaultPlayer):
 
     async def _clear(self):
 
-        self.loop = self.LOOP_NONE
         self.current = None
         self.queue.clear()
         self.recently_played.clear()
+        self.loop, self.shuffle = self.LOOP_NONE, False
+        self.send_channel, self.text_channel = None, None
         await self.clear_filters()
     

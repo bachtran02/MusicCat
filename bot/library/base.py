@@ -51,7 +51,7 @@ async def _get_tracks(lavalink: lavalink.Client, query: str = None, source: Sour
     return result
         
 async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
-        textchannel_id: int = 0, play_next: bool = False, loop: bool = False, shuffle: bool = True) -> hikari.Embed:
+        text_channel: int = 0, play_next: bool = False, loop: bool = False, shuffle: bool = True) -> hikari.Embed:
     
     if not result or result.load_type in (LoadType.ERROR, LoadType.EMPTY):
         logging.warning('Failed to load search result')
@@ -61,14 +61,11 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
     if not player or not player.is_connected:
         await _join(bot, guild_id, author_id)
         player = bot.d.lavalink.player_manager.get(guild_id)
-
-    player.textchannel_id = textchannel_id
     
     result_type, description, image_url, num_tracks = None, None, None, 0
     if result.load_type in (LoadType.TRACK, LoadType.SEARCH):
         result_type, num_tracks = 'track', 1
         track = result.tracks[0]
-        track.extra['requester'] = author_id
         player.add(requester=author_id, track=track, index=0 if play_next else None)
         player.set_loop(1) if loop else None
         image_url = track.artwork_url
@@ -101,10 +98,10 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         while tracks:
             pop_at = randrange(len(tracks)) if shuffle else 0
             track = tracks.pop(pop_at)
-            track.extra['requester']= author_id
             player.add(requester=author_id, track=track)
         player.set_loop(2) if loop else None
 
+    player.send_channel = text_channel
     if not player.is_playing:
         await player.play()
 

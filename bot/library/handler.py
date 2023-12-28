@@ -17,28 +17,31 @@ class EventHandler:
 
         async def delete_message(channel_id: int, message_id: int):
             message = await self.bot.rest.fetch_message(channel_id, message_id)
+            # miru.get_view(message).stop()
             await message.delete()
-            miru.get_view(message).stop()
         
         guild_id = event.player.guild_id
         player = self.bot.d.lavalink.player_manager.get(guild_id)
-        try:
-            await delete_message(player.textchannel_id, player.message_id)
-        except Exception as e:
-            pass
+        message_id, channel_id = player.message_id, player.text_channel
+        if channel_id and message_id:
+            try:
+                await delete_message(channel_id, message_id)
+            except Exception as e:
+                logging.error('Failed to delete old player: %s', e)
+                return
 
         if isinstance(event, lavalink.TrackStartEvent):
         
             view = PlayerView(guild_id=guild_id)
             message = await self.bot.rest.create_message(
-                channel=player.textchannel_id,
+                channel=player.send_channel,
                 embed=PlayerView.get_embed(player),
                 components=view)
-            await view.start(message)
-
+            
             player.message_id = message.id
-            player.textchannel_id = message.channel_id
+            player.text_channel = player.send_channel
 
+            await view.start(message)
 
     @lavalink.listener(lavalink.TrackStartEvent)
     async def track_start(self, event: lavalink.TrackStartEvent):
