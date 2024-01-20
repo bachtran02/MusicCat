@@ -3,7 +3,7 @@ version: '3.8'
 services:
   lavalink:
     image: ghcr.io/lavalink-devs/lavalink:4.0.0
-    restart: unless-stopped
+    container_name: Lavalink
     environment:
       - _JAVA_OPTIONS=-Xmx2G
       - SERVER_PORT=2333
@@ -14,6 +14,7 @@ services:
       - ./Lavalink/application.yml:/opt/Lavalink/application.yml
     ports:
       - 2333:2333
+    restart: unless-stopped
 
   bot:
     build:
