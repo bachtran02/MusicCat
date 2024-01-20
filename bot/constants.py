@@ -1,11 +1,9 @@
-BASE_YT_URL = 'https://www.youtube.com'
-
-COLOR_DICT = {
-    'RED':      0xd25557,
-    'BLUE':     0x00E7FF ,
-    'YELLOW':   0xffff5c,
-    'GREEN':    0x76ffa1,
-}
+"""
+HEX_COLOR_RED       = 0xd25557
+HEX_COLOR_BLUE      = 0x00E7FF
+HEX_COLOR_YELLOW    = 0xffff5c
+HEX_COLOR_GREEN     = 0x76ffa1
+"""
 
 EFFECT_NIGHTCORE = {
     'equalizer': {
@@ -32,3 +30,15 @@ EFFECT_BASS_BOOST = {
     } 
 }
 
+
+EMOJI_RESUME_PLAYER = '<:mc_resume:1187705966263812218>'
+EMOJI_PAUSE_PLAYER  = '<:mc_pause:1187705962358902806>'
+EMOJI_STOP_PLAYER   = '<:mc_stop:1187705975638081557>'
+EMOJI_PLAY_PREVIOUS = '<:mc_previous:1187705971070488627>'
+EMOJI_PLAY_NEXT     = '<:mc_next:1187705968331591710>'
+EMOJI_RADIO_BUTTON  = '<:mc_radio_button:1187818871072247858>'
+EMOJI_LOOP_OFF      = '<:mc_loop_off:1189020553353371678>'
+EMOJI_LOOP_TRACK    = '<:mc_loop_track:1189020551340114032>'
+EMOJI_LOOP_QUEUE    = '<:mc_loop_queue:1189020548525735956>'
+EMOJI_SHUFFLE_OFF   = '<:mc_shuffle_off:1189022239354531890>'
+EMOJI_SHUFFLE_ON    = '<:mc_shuffle_on:1189022235621605498>'

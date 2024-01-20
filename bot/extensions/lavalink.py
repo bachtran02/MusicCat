@@ -2,10 +2,8 @@ import hikari
 import lightbulb
 
 from bot.utils import format_time
-from bot.constants import COLOR_DICT
 
 plugin = lightbulb.Plugin('Lavalink', 'Lavalink commands')
-
 
 @plugin.command()
 @lightbulb.add_checks(lightbulb.owner_only)
@@ -31,9 +29,7 @@ async def stats(ctx: lightbulb.Context) -> None:
         body += 'No stats available' + '\n'
 
     await ctx.respond(embed=hikari.Embed(
-        title = '📊 Lavalink Stats',
-        description = body,
-        colour = COLOR_DICT['BLUE']))
+        title = '📊 Lavalink Stats', description = body))
 
 
 @plugin.command()
@@ -50,13 +46,10 @@ async def info(ctx: lightbulb.Context) -> None:
         for item in info:
             body += '- {}: `{}`\n'.format(item, info[item])
     else:
-        body = 'No info available' + '\n' 
+        body = 'No info available\n' 
 
     await ctx.respond(embed=hikari.Embed(
-        title = '📊 Lavalink Info',
-        description = body,
-        colour = COLOR_DICT['BLUE']))
-
+        title = '📊 Lavalink Info',description = body))
 
 def load(bot: lightbulb.BotApp) -> None:
     bot.add_plugin(plugin)
