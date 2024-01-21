@@ -31,31 +31,13 @@ def setup_lavalink(client: lavalink.Client, event_handler: EventHandler, nodes=[
             host=LAVALINK_HOST, port=LAVALINK_PORT,
             password=LAVALINK_PASSWORD,
             region=node.get('region'), name=node['name'])
-
-"""
-async def setup_bot():
-
-    redis = bot.d.redis
-    if not redis.ping():    # check if connection to redis is ok
-        raise ConnectionError('Failed to connect to Redis')
-    
-    async for guild in bot.rest.fetch_my_guilds():
-        guild_id = guild.id
-        bot.d.guilds[guild_id] = {'muted': False, 'track_loop': False}
-        if redis.exists(guild_id):
-            view = PlayerView()
-            message_id, channel_id = [int(i) for i in redis.hgetall(guild_id).values()]
-            message = await bot.rest.fetch_message(channel_id, message_id)
-            # TODO: handle different message states
-            await message.edit(components=viesw)
-            await view.start(message)
-"""
+    bot.d.lavalink = client
 
 @bot.listen(hikari.StartedEvent)
 async def on_started_event(event: hikari.StartedEvent) -> None:
     
-    bot.d.lavalink = lavalink.Client(user_id=bot.get_me().id, player=MusicCatPlayer)
-    setup_lavalink(bot.d.lavalink, EventHandler(event.app), LAVALINK_NODES)
+    client = lavalink.Client(user_id=bot.get_me().id, player=MusicCatPlayer)
+    setup_lavalink(client, EventHandler(event.app), LAVALINK_NODES)
 
 @bot.listen(lightbulb.CommandInvocationEvent)
 async def on_command(event: lightbulb.CommandInvocationEvent) -> None:

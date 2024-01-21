@@ -74,7 +74,6 @@ async def stop(ctx: lightbulb.Context) -> None:
 
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     await player.stop()
-    plugin.bot.d.guilds[ctx.guild_id].clear()
 
     await ctx.respond(embed=hikari.Embed(
         description = '⏹️ Stopped playing'), delete_after=DELETE_AFTER)

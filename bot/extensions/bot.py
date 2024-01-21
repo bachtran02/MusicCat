@@ -44,28 +44,6 @@ async def leave(ctx: lightbulb.Context) -> None:
     await ctx.respond('Left voice channel!', delete_after=DELETE_AFTER)
 
 
-@plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command('mute', 'Disable sending message on track start')
-@lightbulb.implements(lightbulb.SlashCommand)
-async def mute(ctx: lightbulb.Context) -> None:
-    """Disable sending message on track start"""
-
-    plugin.bot.d.guilds[ctx.guild_id]['muted'] = True
-    await ctx.respond('Bot muted!', delete_after=DELETE_AFTER)
-
-
-@plugin.command()
-@lightbulb.add_checks(lightbulb.guild_only)
-@lightbulb.command('unmute', 'Enable sending message on track start')
-@lightbulb.implements(lightbulb.SlashCommand)
-async def unmute(ctx: lightbulb.Context) -> None:
-    """Enable sending message on track start"""
-
-    plugin.bot.d.guilds[ctx.guild_id]['muted'] = False
-    await ctx.respond('Bot unmuted!', delete_after=DELETE_AFTER)
-
-
 @plugin.listener(hikari.VoiceServerUpdateEvent)
 async def voice_server_update(event: hikari.VoiceServerUpdateEvent) -> None:
     await plugin.bot.d.lavalink._dispatch_event(VoiceServerUpdate(event))
