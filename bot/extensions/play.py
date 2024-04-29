@@ -35,7 +35,7 @@ async def play(ctx: lightbulb.Context) -> None:
     else:
         await ctx.respond('No result for query!', flags=hikari.MessageFlag.EPHEMERAL)
 
-SOURCES = [Spotify, Deezer, YouTube, YouTubeMusic]
+SOURCES = [Spotify, Deezer]  # YouTube is used by default
 QUERY_TYPES = ['track', 'artist', 'playlist', 'album']
 async def query_autocomplete(option, interaction):
    
@@ -53,8 +53,7 @@ async def query_autocomplete(option, interaction):
             continue
         if query_type or value in (Deezer.display_name, Spotify.display_name):
             num_choice = 20 if query_type else num_choice
-            # when source is not specified, look up tracks on Deezer and everything else on Spotify 
-            source = Deezer if value == Deezer.display_name or query_type == 'track' else Spotify
+            source = Deezer if value == Deezer.display_name else Spotify
             raw = await _get_autocomplete(plugin.bot.d.lavalink, query, query_type, source)
             result = LavasearchResult.from_dict(raw)
             choices = []
@@ -71,9 +70,9 @@ async def query_autocomplete(option, interaction):
                 option, url = '💿 {} - {} 🎤'.format(item.title, item.author), item.uri
                 choices.append(AutocompleteChoice(name=option, value=url))
             return choices
-        if value == YouTubeMusic.source_name:
-            result: lavalink.LoadResult = await _get_tracks(plugin.bot.d.lavalink, query, YouTubeMusic)
-            return [AutocompleteChoice('🎵 {} - {}'.format(track.title[:60], track.author[:20]), track.uri) for track in result.tracks]
+        # if value == YouTubeMusic.source_name:
+        #     result: lavalink.LoadResult = await _get_tracks(plugin.bot.d.lavalink, query, YouTubeMusic)
+        #     return [AutocompleteChoice('🎵 {} - {}'.format(track.title[:60], track.author[:20]), track.uri) for track in result.tracks]
     result: lavalink.LoadResult = await _get_tracks(plugin.bot.d.lavalink, query, YouTube)
     return [AutocompleteChoice('🎬 {} [{}]'.format(track.title[:60], track.author[:20]), track.uri) for track in result.tracks]
 
