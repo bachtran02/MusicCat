@@ -2,6 +2,9 @@ server: # REST and WS server
   port: 2333
   address: 0.0.0.0
 plugins:
+  youtube:
+    enabled: true
+    clients: ["MUSIC", "ANDROID", "WEB"]
   lavasrc:
       providers:
         - "dzisrc:%ISRC%" 
@@ -13,7 +16,7 @@ plugins:
         deezer: true
         yandexmusic: false
         flowerytts: false
-        youtube: true
+        youtube: false
       spotify:
         clientId: ""
         clientSecret: ""
@@ -24,14 +27,17 @@ plugins:
         masterDecryptionKey: ""
 lavalink:
   plugins:
-    # - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.0.0"
-    #   repository: "https://maven.topi.wtf/releases"
-    # - dependency: "com.github.topi314.lavasearch:lavasearch-plugin:1.0.0"
-    #   repository: "https://maven.topi.wtf/releases"
+    - dependency: "com.github.lavalink-devs.lavaplayer-youtube-source:plugin:1.0.5"
+      repository: "https://jitpack.io"
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.0.0"
+      repository: "https://maven.topi.wtf/releases"
+    - dependency: "com.github.topi314.lavasearch:lavasearch-plugin:1.0.0"
+      repository: "https://maven.topi.wtf/releases"
+
   server:
     password: "youshallnotpass"
     sources:
-      youtube: true
+      youtube: false
       bandcamp: false
       soundcloud: true
       twitch: false
