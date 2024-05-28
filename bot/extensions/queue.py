@@ -4,7 +4,7 @@ import lightbulb
 from bot.library.checks import valid_user_voice, player_playing
 from bot.library.classes.choice import AutocompleteChoice 
 from bot.library.classes.sources import Spotify, Deezer
-from bot.utils import player_bar, format_time
+from bot.utils import player_bar, format_time, trim
 
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Queue', 'Queue commands')
@@ -78,7 +78,7 @@ async def remove_autocomplete(option, interaction):
     player = plugin.bot.d.lavalink.player_manager.get(interaction.guild_id)
     if not player or not player.is_playing:
         return None
-    return [AutocompleteChoice(f'{track.title[:60]} - {track.author[:20]}', str(i)) for i, track in enumerate(player.queue[:25])]
+    return [AutocompleteChoice('{} - {}'.format(trim(track.title, 60), trim(track.author, 20)), i) for i, track in enumerate(player.queue[:25])]
 
 @plugin.command()
 @lightbulb.add_checks(

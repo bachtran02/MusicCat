@@ -3,10 +3,11 @@ import lavalink
 import lightbulb
 
 from bot.library.checks import valid_user_voice
-from bot.library.base import _play, _get_tracks, _get_autocomplete
+from bot.library.base import _play, _get_tracks
 from bot.library.classes.choice import AutocompleteChoice
 from bot.library.classes.lavasearch import LavasearchResult
-from bot.library.classes.sources import Spotify, Deezer, YouTube, YouTubeMusic
+from bot.library.classes.sources import Source, Spotify, Deezer, YouTube, YouTubeMusic
+from bot.utils import trim
 
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Play', 'Commands to play music')
@@ -38,6 +39,16 @@ async def play(ctx: lightbulb.Context) -> None:
 SOURCES = [Spotify, Deezer]  # YouTube is used by default
 QUERY_TYPES = ['track', 'artist', 'playlist', 'album']
 async def query_autocomplete(option, interaction):
+
+    async def get_autocomplete(lavalink: lavalink.Client, query: str = None, types: str = None, source: Source = YouTube):
+    
+        query = '{}:{}'.format(source.search_prefix, query)
+        node = lavalink.node_manager.find_ideal_node()
+        json = await node._transport._request(
+            method='GET',
+            path='loadsearch',
+            params={'query': query, 'types': types or 'track,artist,playlist,album'})
+        return LavasearchResult.from_dict(json if isinstance(json, dict) else None)
    
     query = option.value    # partial query
     if not query:
@@ -54,27 +65,26 @@ async def query_autocomplete(option, interaction):
         if query_type or value in (Deezer.display_name, Spotify.display_name):
             num_choice = 20 if query_type else num_choice
             source = Deezer if value == Deezer.display_name else Spotify
-            raw = await _get_autocomplete(plugin.bot.d.lavalink, query, query_type, source)
-            result = LavasearchResult.from_dict(raw)
+            result = await get_autocomplete(plugin.bot.d.lavalink, query, query_type, source)
             choices = []
             for track in result.tracks[:num_choice]:
-                option, url = '🎵 {} - {}'.format(track.title, track.author), track.uri
+                option, url = '🎵 {} - {}'.format(trim(track.title, 60), trim(track.author, 20)), track.uri
                 choices.append(AutocompleteChoice(name=option, value=url))
             for item in result.artists[:num_choice]:
-                option, url = '🎤 {}'.format(item.author), item.uri
+                option, url = '🎤 {}'.format(trim(item.author, 80)), item.uri
                 choices.append(AutocompleteChoice(name=option, value=url))
             for item in result.playlists[:num_choice]:
-                option, url = '🎧 {} - {} ⭐'.format(item.title, item.author), item.uri
+                option, url = '🎧 {} - {} ⭐'.format(trim(item.title, 60), trim(item.author, 20)), item.uri
                 choices.append(AutocompleteChoice(name=option, value=url))
             for item in result.albums[:num_choice]:
-                option, url = '💿 {} - {} 🎤'.format(item.title, item.author), item.uri
+                option, url = '💿 {} - {} 🎤'.format(trim(item.title, 60), trim(item.author, 20)), item.uri
                 choices.append(AutocompleteChoice(name=option, value=url))
             return choices
         # if value == YouTubeMusic.source_name:
         #     result: lavalink.LoadResult = await _get_tracks(plugin.bot.d.lavalink, query, YouTubeMusic)
-        #     return [AutocompleteChoice('🎵 {} - {}'.format(track.title[:60], track.author[:20]), track.uri) for track in result.tracks]
+        #     return [AutocompleteChoice('🎵 {} - {}'.format(trim(track.title, 60), trim(track.author, 20)), track.uri) for track in result.tracks]
     result: lavalink.LoadResult = await _get_tracks(plugin.bot.d.lavalink, query, YouTube)
-    return [AutocompleteChoice('🎬 {} [{}]'.format(track.title[:60], track.author[:20]), track.uri) for track in result.tracks]
+    return [AutocompleteChoice('🎬 {} [{}]'.format(trim(track.title, 60), trim(track.author, 20)), track.uri) for track in result.tracks]
 
 @plugin.command()
 @lightbulb.add_checks(

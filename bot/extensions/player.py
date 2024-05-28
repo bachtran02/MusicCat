@@ -210,28 +210,6 @@ async def effects(ctx : lightbulb.Context) -> None:
         description = f'Effect added: `{effect}`'), delete_after=DELETE_AFTER)
     logging.info('`%s` added to player on guild: %s', effect, ctx.guild_id)
 
-"""
-@plugin.command()
-@lightbulb.add_checks(
-    lightbulb.guild_only, player_playing
-)
-@lightbulb.command('player', 'Interactive guild music player')
-@lightbulb.implements(lightbulb.SlashCommand)
-async def player(ctx: lightbulb.Context) -> None:
-    \"""Interactive guild music player\"""
-
-    player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
-    redis = plugin.bot.d.redis
-
-    view = PlayerView()
-    message = await ctx.respond(components=view, embed=view.get_embed(player))
-    await view.start(message)
-
-    # save message to redis
-    msg = await message.message()
-    redis.hset(ctx.guild_id, mapping={'message': msg.id, 'channel': msg.channel_id})
-"""
-
 def load(bot: lightbulb.BotApp) -> None:
     bot.add_plugin(plugin)
 
