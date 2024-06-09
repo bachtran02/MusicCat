@@ -22,9 +22,10 @@ async def now(ctx: lightbulb.Context) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     current = player.current
 
-    desc = '[{}]({})\n{}\n{}\n\nRequested: <@!{}>\n'.format(
-        current.title, current.uri, current.author,
-        player_bar(player), current.requester)
+    desc = '[{}]({})\n{}\n{}\n\n{}\nRequested <@!{}>\n'.format(
+        current.title, current.uri, current.author, player_bar(player),
+        'Playlist [{}]({})'.format(current.user_data['playlist_name'], current.user_data['playlist_url']),
+        current.requester)
     
     if player.queue:
         track = player.queue[0]
@@ -51,9 +52,10 @@ async def queue(ctx : lightbulb.Context) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     current = player.current
 
-    desc = '[{}]({})\n{}\n{}\n\nRequested: <@!{}>\n'.format(
-        current.title, current.uri, current.author,
-        player_bar(player), current.requester)
+    desc = '[{}]({})\n{}\n{}\n\n{}\nRequested <@!{}>\n'.format(
+        current.title, current.uri, current.author, player_bar(player),
+        'Playlist [{}]({})'.format(current.user_data['playlist_name'], current.user_data['playlist_url']),
+        current.requester)
 
     for i, track in enumerate(player.queue):
         if i == 0:

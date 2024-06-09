@@ -38,7 +38,7 @@ async def _get_tracks(lavalink: lavalink.Client, query: str = None, source: Sour
 
     result = await lavalink.get_tracks(query)
     if result.load_type == LoadType.PLAYLIST and result.tracks:
-        result.tracks[0].extra['playlist_url'] = query
+        result.tracks[0].user_data['playlist_url'] = query
 
     return result
         
@@ -71,7 +71,7 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         tracks = result.tracks
         num_tracks = len(tracks)
         if not result.plugin_info or result.plugin_info.get('type') not in ('artist', 'playlist', 'album'):
-            playlist_url = tracks[0].extra.get('playlist_url', None)    # get url from query
+            playlist_url = tracks[0].user_data.get('playlist_url', None)
             description = 'Playlist [{}]({}) - {} tracks\n\n<@{}>'.format(
                 result.playlist_info.name, playlist_url, num_tracks, author_id)
         else:
@@ -90,6 +90,10 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         while tracks:
             pop_at = randrange(len(tracks)) if shuffle else 0
             track = tracks.pop(pop_at)
+            track.user_data = {
+                'playlist_name': result.playlist_info.name,
+                'playlist_url': playlist_url,
+            }
             player.add(requester=author_id, track=track)
         player.set_loop(2) if loop else None
 
