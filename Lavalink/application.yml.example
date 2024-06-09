@@ -7,7 +7,8 @@ plugins:
     clients: ["MUSIC", "ANDROID", "WEB"]
   lavasrc:
       providers:
-        - "dzisrc:%ISRC%" 
+        - "dzisrc:%ISRC%"
+        # - "dzsearch:%QUERY%"
         - "ytsearch:\"%ISRC%\""
         - "ytsearch:%QUERY%"
       sources:
