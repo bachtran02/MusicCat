@@ -9,6 +9,13 @@ from bot.utils import player_bar, format_time, trim
 DELETE_AFTER = 60
 plugin = lightbulb.Plugin('Queue', 'Queue commands')
 
+DESC_TEMPL = (
+    '[{title}]({uri})\n'
+    '{author}\n'
+    '{player_bar}\n\n'
+    '{playlist_info}'
+    'Requested <@!{requester}>\n'
+)
 
 @plugin.command()
 @lightbulb.add_checks(
@@ -22,10 +29,21 @@ async def now(ctx: lightbulb.Context) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     current = player.current
 
-    desc = '[{}]({})\n{}\n{}\n\n{}\nRequested <@!{}>\n'.format(
-        current.title, current.uri, current.author, player_bar(player),
-        'Playlist [{}]({})'.format(current.user_data['playlist_name'], current.user_data['playlist_url']),
-        current.requester)
+    if current.user_data:
+        playlist_name = current.user_data.get('playlist_name', 'Unknown Playlist')
+        playlist_url = current.user_data.get('playlist_url', '#')
+        playlist_info = f'Playlist [{playlist_name}]({playlist_url})\n'
+    else:
+        playlist_info = ''
+
+    desc = DESC_TEMPL.format(
+        title=current.title,
+        uri=current.uri,
+        author=current.author,
+        player_bar=player_bar(player),
+        playlist_info=playlist_info,
+        requester=current.requester
+    )
     
     if player.queue:
         track = player.queue[0]
@@ -52,10 +70,21 @@ async def queue(ctx : lightbulb.Context) -> None:
     player = plugin.bot.d.lavalink.player_manager.get(ctx.guild_id)
     current = player.current
 
-    desc = '[{}]({})\n{}\n{}\n\n{}\nRequested <@!{}>\n'.format(
-        current.title, current.uri, current.author, player_bar(player),
-        'Playlist [{}]({})'.format(current.user_data['playlist_name'], current.user_data['playlist_url']),
-        current.requester)
+    if current.user_data:
+        playlist_name = current.user_data.get('playlist_name', 'Unknown Playlist')
+        playlist_url = current.user_data.get('playlist_url', '#')
+        playlist_info = f'Playlist [{playlist_name}]({playlist_url})\n'
+    else:
+        playlist_info = ''
+
+    desc = DESC_TEMPL.format(
+        title=current.title,
+        uri=current.uri,
+        author=current.author,
+        player_bar=player_bar(player),
+        playlist_info=playlist_info,
+        requester=current.requester
+    )
 
     for i, track in enumerate(player.queue):
         if i == 0:
