@@ -20,7 +20,7 @@ async def _join(bot, guild_id: int, author_id: int):
 
     bot.d.lavalink.player_manager.create(guild_id=guild_id)
     try:
-        await bot.update_voice_state(guild_id, voice_state[0].channel_id, self_deaf=True)
+        await bot.update_voice_state(guild_id, voice_state[1].channel_id, self_deaf=True)
     except RuntimeError as e:
         logging.error('Failed to join voice channel on guild: %s, Reason: %s', guild_id, e)
         raise e
