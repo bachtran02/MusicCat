@@ -17,7 +17,7 @@ class EventHandler:
 
         async def delete_message(channel_id: int, message_id: int):
             message = await self.bot.rest.fetch_message(channel_id, message_id)
-            # miru.get_view(message).stop()
+            miru.get_view(message).stop()
             await message.delete()
         
         guild_id = event.player.guild_id

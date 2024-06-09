@@ -94,11 +94,11 @@ class PlayerView(miru.View):
         await self.message.edit(components=self)
 
     @miru.button(row=0, style=hikari.ButtonStyle.SECONDARY, emoji=EMOJI_PLAY_PREVIOUS)
-    async def play_previous(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+    async def player_previous(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         await self.get_player().play_previous()
 
     @miru.button(row=0, style=hikari.ButtonStyle.SECONDARY, emoji=EMOJI_PAUSE_PLAYER)
-    async def play_pause(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+    async def player_pause(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         
         player = self.get_player()
         await player.set_pause(not player.paused)
@@ -106,9 +106,9 @@ class PlayerView(miru.View):
         await self.update_message()
 
     @miru.button(row=0, style=hikari.ButtonStyle.SECONDARY, emoji=EMOJI_PLAY_NEXT)
-    async def play_next(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+    async def player_next(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         await self.get_player().skip()
     
     @miru.button(row=1, style=hikari.ButtonStyle.SECONDARY, emoji=EMOJI_STOP_PLAYER)
-    async def stop(self, button: miru.Button, ctx: miru.ViewContext) -> None:
+    async def player_stop(self, button: miru.Button, ctx: miru.ViewContext) -> None:
         await self.get_player().stop()
