@@ -7,32 +7,24 @@ import lavalink
 from lavalink import LoadType
 
 from bot.utils import format_time
-from .classes.sources import *
+from bot.library.classes.sources import *
 
 URL_RX = re.compile(r'https?://(?:www\.)?.+')
 
 async def _join(bot, guild_id: int, author_id: int):
 
     states = bot.cache.get_voice_states_view_for_guild(guild_id)
-    voice_state = [state[1] for state in filter(lambda i : i[0] == author_id, states.items())]
-    channel_id = voice_state[0].channel_id  # voice channel user is in
+    voice_state = next(filter(lambda i : i[0] == author_id, states.items()), None)
+    
+    assert voice_state is not None  # should already be covered via checks
 
     bot.d.lavalink.player_manager.create(guild_id=guild_id)
     try:
-        await bot.update_voice_state(guild_id, channel_id, self_deaf=True)
+        await bot.update_voice_state(guild_id, voice_state[1].channel_id, self_deaf=True)
     except RuntimeError as e:
         logging.error('Failed to join voice channel on guild: %s, Reason: %s', guild_id, e)
         raise e
     logging.info('Client connected to voice channel on guild: %s', guild_id)
-    
-async def _get_autocomplete(lavalink: lavalink.Client, query: str = None, types: str = None, source: Source = YouTube):
-    
-    query = '{}:{}'.format(source.search_prefix, query)
-    types = types or 'track,artist,playlist,album'
-    node = lavalink.node_manager.find_ideal_node()
-    json = await node._transport._request('GET', 'loadsearch', params={'query': query, 'types': types})
-
-    return json if isinstance(json, dict) else None
 
 async def _get_tracks(lavalink: lavalink.Client, query: str = None, source: Source = YouTube) -> lavalink.LoadResult:
     
@@ -46,7 +38,7 @@ async def _get_tracks(lavalink: lavalink.Client, query: str = None, source: Sour
 
     result = await lavalink.get_tracks(query)
     if result.load_type == LoadType.PLAYLIST and result.tracks:
-        result.tracks[0].extra['playlist_url'] = query
+        result.tracks[0].user_data['playlist_url'] = query
 
     return result
         
@@ -79,7 +71,7 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         tracks = result.tracks
         num_tracks = len(tracks)
         if not result.plugin_info or result.plugin_info.get('type') not in ('artist', 'playlist', 'album'):
-            playlist_url = tracks[0].extra.get('playlist_url', None)    # get url from query
+            playlist_url = tracks[0].user_data.get('playlist_url', None)
             description = 'Playlist [{}]({}) - {} tracks\n\n<@{}>'.format(
                 result.playlist_info.name, playlist_url, num_tracks, author_id)
         else:
@@ -98,6 +90,10 @@ async def _play(bot, result: lavalink.LoadResult, guild_id: int, author_id: int,
         while tracks:
             pop_at = randrange(len(tracks)) if shuffle else 0
             track = tracks.pop(pop_at)
+            track.user_data = {
+                'playlist_name': result.playlist_info.name,
+                'playlist_url': playlist_url,
+            }
             player.add(requester=author_id, track=track)
         player.set_loop(2) if loop else None
 

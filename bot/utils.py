@@ -49,3 +49,9 @@ def player_bar(player: lavalink.DefaultPlayer):
         player_bar = progress_bar(player.position/player.current.duration)
 
     return f'{play_pause} {player_bar} `{playtime}`'
+
+
+def trim(s: str, max_len: int) -> str:
+    if len(s) > max_len:
+        return s[:max_len - 3] + '...'
+    return s

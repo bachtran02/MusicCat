@@ -20,13 +20,13 @@ def valid_user_voice(ctx: lightbulb.Context) -> bool:
         raise lightbulb.CheckFailure('Cannot invoke command in DMs')
     
     states = ctx.app.cache.get_voice_states_view_for_guild(ctx.guild_id)
-    user_voice_state = [state[1] for state in filter(lambda i : i[0] == ctx.author.id, states.items())]
-    bot_voice_state = [state[1] for state in filter(lambda i: i[0] == ctx.app.get_me().id, states.items())]
+    user_voice_state = next(filter(lambda i : i[0] == ctx.author.id, states.items()), None)
+    bot_voice_state = next(filter(lambda i: i[0] == ctx.app.get_me().id, states.items()), None)
     
     # if user & bot not in voice or in different channels
     if not user_voice_state:
         raise NotInVoice('Join voice channel to use command')
-    if bot_voice_state and user_voice_state[0].channel_id != bot_voice_state[0].channel_id:
+    if bot_voice_state and user_voice_state[1].channel_id != bot_voice_state[1].channel_id:
         raise NotSameVoice('Join the same channel as bot to use command')
     return True
 
