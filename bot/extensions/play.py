@@ -17,9 +17,9 @@ plugin = lightbulb.Plugin('Play', 'Commands to play music')
 
 def play_checks_options(func: lightbulb.decorators.CommandCallbackT) -> lightbulb.decorators.CommandCallbackT:
     func = lightbulb.add_checks(lightbulb.guild_only, valid_user_voice)(func)
-    func = lightbulb.option('loop', 'Loop track/playlist', choices=('True'), default='False')(func)
-    func = lightbulb.option('next', 'Play track next', choices=('True'), default='False')(func)
-    func = lightbulb.option('shuffle', 'Disable playlist shuffle', choices=('False'), default='True')(func)
+    func = lightbulb.option('loop', 'Loop track/playlist', choices=['True'], default='False')(func)
+    func = lightbulb.option('next', 'Play track next', choices=['True'], default='False')(func)
+    func = lightbulb.option('shuffle', 'Disable playlist shuffle', choices=['False'], default='True')(func)
     return func
 
 async def get_choices(lavalink: lavalink.Client, query: str = None, types: str = None, source: Source = YouTube):
