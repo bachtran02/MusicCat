@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:v4-update-lp
+    image: ghcr.io/lavalink-devs/lavalink:4.0.7
     container_name: Lavalink
     environment:
       - _JAVA_OPTIONS=-Xmx2G
