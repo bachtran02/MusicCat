@@ -1,6 +1,6 @@
-# [MusicCat](https://discord.com/api/oauth2/authorize?client_id=1055170653126398013&permissions=0&scope=bot) 
+# MusicCat
 
-A Discord music streaming bot built with [hikari](https://www.hikari-py.dev/) and [lightbulb](https://hikari-lightbulb.readthedocs.io/en/latest/). MusicCat uses [Lavalink](https://github.com/lavalink-devs/Lavalink/tree/master) as audio source and its plugins for additional streaming platforms and features. Try out the bot [here](https://discord.com/api/oauth2/authorize?client_id=1055170653126398013&permissions=0&scope=bot)!
+A Discord music streaming bot built with [DisGo](https://github.com/disgoorg/disgo). MusicCat uses [Lavalink](https://github.com/lavalink-devs/Lavalink/tree/master) as audio source and its plugins for additional streaming platforms and features.
 
 
 ## FEATURES:
@@ -10,7 +10,7 @@ A Discord music streaming bot built with [hikari](https://www.hikari-py.dev/) an
 
 * Interactive music player allows better control of playing music with buttons.
 
-<img src="https://github.com/bachtran02/MusicCat/assets/83796054/15af5289-b1e9-4efd-9989-49ecce931fe6"  width="300">
+<img src="assets/musiccat_player.png"  width="300">
 
 *  `/search` - Search query autocompletion allows precise track lookup:
 
@@ -18,38 +18,30 @@ A Discord music streaming bot built with [hikari](https://www.hikari-py.dev/) an
 
 *  `source` - search source to look up query (YouTube/YouTube Music/Spotify/Deezer).
 
-<img  src="https://github.com/bachtran02/MusicCat/assets/83796054/68241e7a-469a-4213-b10b-84ba1fbe03c6"  width="400">
+<img  src="assets/musiccat_music_search_1.png"  width="400">
 
-<img  src="https://github.com/bachtran02/MusicCat/assets/83796054/baf96170-0f61-4fb8-b4ed-e40123d3439e"  width="400">
+<img  src="/assets/musiccat_music_search_2.png"  width="400">
 
 
-*  `/effects` - add effects to your music (currently supports `Nightcore` and `Bass Boost`).
+* Music Tracker Integration - Share your real-time listening activity with your personal website through WebSocket connection.
 
 * Personal music `play/pause` support - when the voice session only has you and the bot, Discord's `deafen` 🎧 pauses the player and `undeafen` resumes it.
 
 * Sources supported: [YouTube](https://www.youtube.com/), [YouTube Music](https://music.youtube.com/), [Spotify](https://open.spotify.com/), [Deezer](https://www.deezer.com/us/) and more [here](https://github.com/lavalink-devs/lavaplayer#supported-formats)
 
-* 24/7 Support :)
-
+* Playlist Management - Create, modify, and manage your personal playlists with easy-to-use commands.
 
 > Any suggestion for cool additional features feel free to reach out!
 
   
 ### Slash (/) commands:
 
-Track lookup: `play`  `search`
+Bot control: `/bot/join`  `/bot/leave`  `/bot/ping`
 
-Player control: `pause`  `resume`  `skip`  `stop`  `seek`  `restart`
+Music control: `/music/play`  `/music/search`  `/music/pause`  `/music/resume`  `/music/skip`  `/music/stop`  `/music/seek`
 
-Queue: `now`  `queue`  `remove`  `shuffle`  `loop`
+Queue management: `/music/now`  `/music/queue`  `/music/remove`  `/music/shuffle`  `/music/loop`
 
-Effects: `effects`
+Playlist features: `/list/add`  `/list/create`  `/list/delete`  `/list/list`  `/list/remove`
 
-Others: `join`  `leave`
-
->  `remove` for removing a track from queue also has autocomplete support
-
-
----
-
-Inspired by project [Ashema](https://github.com/nauqh/Ashema) in collaboration with [Nauqh](https://github.com/nauqh)
+> Autocomplete support available for: `/music/remove`, `/music/search`, `/list/add`, `/list/delete`, `/list/remove`
