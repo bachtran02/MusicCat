@@ -1,0 +1,18 @@
+services:
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:master
+    container_name: lavalink
+    restart: unless-stopped
+    environment:
+      # - _JAVA_OPTIONS=-Xmx6G
+      - SERVER_PORT=2333
+      - LAVALINK_SERVER_PASSWORD=youshallnotpass
+    volumes:
+      - ./application.yml:/opt/Lavalink/application.yml
+      # persist plugins between restarts, make sure to set the correct permissions (user: 322, group: 322)
+      - ./plugins/:/opt/Lavalink/plugins/
+      - ./logs/:/opt/Lavalink/logs/
+    expose:
+      - 2333
+    ports:
+      - "2333:2333"

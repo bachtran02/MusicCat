@@ -1,8 +1,13 @@
-FROM python:3.10
-RUN apt-get update
+FROM golang:1.22
 
-WORKDIR /MusicCat
-COPY . /MusicCat
+WORKDIR /build
 
-RUN pip install -r requirements.txt
-CMD ["python", "-O", "-m", "bot" ]
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o MusicCatGo
+
+ENTRYPOINT ["/build/MusicCatGo"]

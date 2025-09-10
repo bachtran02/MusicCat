@@ -1,29 +1,45 @@
-version: '3.8'
-
 services:
+  # bot:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: MusicCatGo
+  #   depends_on:
+  #     - lavalink
+  #   networks:
+  #     - bachgo_lavalink
+
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:4.0.7
-    container_name: Lavalink
+    image: ghcr.io/lavalink-devs/lavalink:master
+    container_name: lavalink
     environment:
-      - _JAVA_OPTIONS=-Xmx2G
       - SERVER_PORT=2333
-      - LAVALINK_SERVER_PASSWORD=youshallnotpass 
+      - LAVALINK_SERVER_PASSWORD=youshallnotpass
     volumes:
-      - ./Lavalink/logs/:/opt/Lavalink/logs/  # run `sudo chown -R 322:322 logs`
-      - ./Lavalink/plugins/:/opt/Lavalink/plugins/  # run `sudo chown -R 322:322 plugins`
       - ./Lavalink/application.yml:/opt/Lavalink/application.yml
+      - ./Lavalink/plugins/:/opt/Lavalink/plugins/
+      - ./Lavalink/logs/:/opt/Lavalink/logs/
+    # expose:
+    #   - 2333
     ports:
       - 2333:2333
-    restart: unless-stopped
+    networks:
+      - bachgo_lavalink
 
-  bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: MusicCat
-    depends_on:
-      - lavalink
+  postgres:
+    image: postgres
+    # container_name: container-pg
+    environment:
+      POSTGRES_USER: musiccatgo
+      POSTGRES_PASSWORD: youshallnotpass
+      POSTGRES_DB: playlist_db
     volumes:
-      - ./logs:/logs
-    restart: unless-stopped
-    
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - bachgo_lavalink
+  
+networks:
+  bachgo_lavalink:
+    external: true

@@ -3,25 +3,22 @@ server: # REST and WS server
   address: 0.0.0.0
 plugins:
   youtube:
-    pot:
-      token: ""
-      visitorData: ""
-    enabled: true # Whether this source can be used.
-    allowSearch: true # Whether "ytsearch:" and "ytmsearch:" can be used.
-    allowDirectVideoIds: true # Whether just video IDs can match. If false, only complete URLs will be loaded.
-    allowDirectPlaylistIds: true # Whether just playlist IDs can match. If false, only complete URLs will be loaded.
-    # The clients to use for track loading. See below for a list of valid clients.
-    # Clients are queried in the order they are given (so the first client is queried first and so on...)
-    clients:
-      - TVHTML5EMBEDDED
-      - MUSIC
-      - WEB
-      - ANDROID_MUSIC
+      enabled: true # Whether this source can be used.
+      allowSearch: true # Whether "ytsearch:" and "ytmsearch:" can be used.
+      allowDirectVideoIds: true # Whether just video IDs can match. If false, only complete URLs will be loaded.
+      allowDirectPlaylistIds: true # Whether just playlist IDs can match. If false, only complete URLs will be loaded.
+      # The clients to use for track loading. See below for a list of valid clients.
+      # Clients are queried in the order they are given (so the first client is queried first and so on...)
+      clients:
+        - MUSIC
+        - ANDROID_VR
+        - WEB
+        - WEBEMBEDDED
   lavasrc:
       providers:
-        # - "dzsearch:%QUERY%"
         - "ytsearch:\"%ISRC%\""
-        - "dzisrc:%ISRC%" 
+        - "dzsearch:%QUERY%"
+        - "dzisrc:%ISRC%"
         - "ytsearch:%QUERY%"
       sources:
         spotify: true
@@ -38,11 +35,14 @@ plugins:
         albumLoadLimit: 6
       deezer:
         masterDecryptionKey: ""
+        arl: ""
+        formats: [ "MP3_128", "MP3_64"]
+
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.11.1"
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.13.4"
       repository: "https://maven.lavalink.dev/releases"
-    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.0.0"
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.7.3"
       repository: "https://maven.topi.wtf/releases"
     - dependency: "com.github.topi314.lavasearch:lavasearch-plugin:1.0.0"
       repository: "https://maven.topi.wtf/releases"
@@ -79,6 +79,20 @@ lavalink:
     youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
     gc-warnings: true
+    #ratelimit:
+      #ipBlocks: ["1.0.0.0/8", "..."] # list of ip blocks
+      #excludedIps: ["...", "..."] # ips which should be explicit excluded from usage by lavalink
+      #strategy: "RotateOnBan" # RotateOnBan | LoadBalance | NanoSwitch | RotatingNanoSwitch
+      #searchTriggersFail: true # Whether a search 429 should trigger marking the ip as failing
+      #retryLimit: -1 # -1 = use default lavaplayer value | 0 = infinity | >0 = retry will happen this numbers times
+    #youtubeConfig: # Required for avoiding all age restrictions by YouTube, some restricted videos still can be played without.
+      #email: "" # Email of Google account
+      #password: "" # Password of Google account
+    #httpConfig: # Useful for blocking bad-actors from ip-grabbing your music node and attacking it, this way only the http proxy will be attacked
+      #proxyHost: "localhost" # Hostname of the proxy, (ip or domain)
+      #proxyPort: 3128 # Proxy port, 3128 is the default for squidProxy
+      #proxyUser: "" # Optional user for basic authentication fields, leave blank if you don't use basic auth
+      #proxyPassword: "" # Password for basic authentication
 
 metrics:
   prometheus:

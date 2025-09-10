@@ -1,0 +1,31 @@
+bot:
+  token:
+
+nodes:
+  - name: "musiccatgo"
+    address: lavalink:2333
+    password: youshallnotpass
+    secure: false
+
+music_tracker:
+  enabled:
+  channel_id:
+  guild_id:
+  host_address:
+  http_path:
+  websocket_path:
+  allowed_origins:
+
+database:
+  host: postgres
+  port: 5432
+  username: musiccatgo
+  password: youshallnotpass
+  database: musiccat_playlist_db
+
+log:
+  level: DEBUG
+  format: text
+  file_path: ./logs/bot.log
+  add_source: true
+  env: dev
